@@ -126,7 +126,42 @@ private val Amber = Color(0xFFF6C86F)
 }
 private enum class Tab(val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) { Home("Home", Icons.Rounded.Home), Modules("Module", Icons.Rounded.Extension), Superuser("Superuser", Icons.Rounded.AdminPanelSettings), Settings("Optionen", Icons.Rounded.Settings), Logs("Logs", Icons.Rounded.Article) }
 
-@Composable private fun Page(title: String, subtitle: String? = null, content: LazyListScope.() -> Unit) = LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 28.dp, bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) { item { Text(title, style = MaterialTheme.typography.headlineMedium); if (subtitle != null) Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 3.dp)) }; content() }
+@Composable
+private fun Page(
+    title: String,
+    subtitle: String? = null,
+    content: LazyListScope.() -> Unit,
+) = LazyColumn(
+    modifier = Modifier.fillMaxSize(),
+    contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 26.dp, bottom = 36.dp),
+    verticalArrangement = Arrangement.spacedBy(14.dp),
+) {
+    item {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier.size(7.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary)
+            )
+            Spacer(Modifier.width(9.dp))
+            Text(
+                "VEYRA  /  CORE",
+                color = MaterialTheme.colorScheme.secondary,
+                fontSize = 11.sp,
+                letterSpacing = 1.5.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+        Spacer(Modifier.height(10.dp))
+        Text(title, style = MaterialTheme.typography.headlineMedium)
+        if (subtitle != null) {
+            Text(
+                subtitle,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+    }
+    content()
+}
 @Composable private fun Panel(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) = Card(modifier, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = .72f)), shape = RoundedCornerShape(20.dp)) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp), content = content) }
 @Composable private fun Meta(label: String, value: String) = Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) { Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(.38f)); Text(value, modifier = Modifier.weight(.62f), maxLines = 2, overflow = TextOverflow.Ellipsis) }
 
