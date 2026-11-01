@@ -57,13 +57,34 @@ class SafeShell {
     suspend fun su(command: String, timeoutSeconds: Long = 6): ShellResult = withContext(Dispatchers.IO) {
         try {
             val process = ProcessBuilder("su", "-c", command).redirectErrorStream(true).start()
+            val output = StringBuffer()
+            val drain = Thread {
+                try {
+                    process.inputStream.bufferedReader().use { reader ->
+                        val chunk = CharArray(2_048)
+                        while (true) {
+                            val n = reader.read(chunk)
+                            if (n < 0) break
+                            synchronized(output) {
+                                val remaining = 24_000 - output.length
+                                if (remaining > 0) output.append(chunk, 0, minOf(n, remaining))
+                            }
+                        }
+                    }
+                } catch (_: Exception) {
+                    // Process may close its stream after a deadline.
+                }
+            }
+            drain.isDaemon = true
+            drain.start()
             val completed = process.waitFor(timeoutSeconds, TimeUnit.SECONDS)
             if (!completed) {
                 process.destroyForcibly()
-                return@withContext ShellResult(null, "", timedOut = true, error = "Zeitlimit nach ${timeoutSeconds}s")
+                drain.join(600)
+                return@withContext ShellResult(null, output.toString().trim(), timedOut = true, error = "Zeitlimit nach ${timeoutSeconds}s")
             }
-            val output = BufferedReader(InputStreamReader(process.inputStream)).use { it.readText().take(24_000) }
-            ShellResult(process.exitValue(), output.trim())
+            drain.join(600)
+            ShellResult(process.exitValue(), output.toString().trim())
         } catch (e: Exception) {
             ShellResult(null, "", error = e.message ?: e.javaClass.simpleName)
         }
@@ -92,6 +113,7 @@ class SafeShell {
     suspend fun markModuleRemoval(id: String): Result<Unit> = guardedModuleCommand(id, "remove", true)
     private suspend fun guardedModuleCommand(id: String, marker: String, create: Boolean): Result<Unit> = runCatching {
         require(ModuleId.isSafe(id)) { "Ungültige Modul-ID" }
+        require(probe().state == Verification.VERIFIED) { "Root-Rechte vor der Änderung erneut prüfen" }
         val command = if (create) "touch /data/adb/modules/$id/$marker" else "rm -f /data/adb/modules/$id/$marker"
         val result = su(command, 5)
         require(result.exitCode == 0) { result.error ?: result.output.ifBlank { "Shell-Befehl fehlgeschlagen" } }

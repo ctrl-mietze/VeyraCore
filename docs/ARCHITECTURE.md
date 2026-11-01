@@ -1,13 +1,20 @@
-# Architecture
+# Architecture — independent VeyraCore application
 
-VeyraCore is an independent Kotlin/Jetpack Compose application. Its boundaries are deliberate:
+The `ctrl.veyracore` Android app contains a Compose UI, validated method registry, bounded root boundary and local module adapter. Unlike a kernel-patching tool, it does not replace the boot image or attempt to write an Android kernel.
 
-- `MainActivity` provides Compose state and navigation only.
-- `SafeShell` is the one bounded privileged-command boundary. It executes a fixed command set through `su -c`, uses timeouts, validates module identifiers, and never accepts arbitrary UI command text.
-- `RootProvider` and `VeyraRuntimeBridge` are contracts for a future, separately reviewed Veyra Load runtime. They have no exploit implementation in 0.1.0.
-- `ProfileMatcher` requires exact manufacturer, model, build fingerprint, and kernel equality. The shipped registry is empty.
-- `LocalStore` persists theme choice and structured local diagnostics using app-private preferences. Download export uses `MediaStore.Downloads` and does not request broad storage access.
+| Layer | Responsibility |
+|---|---|
+| `MainActivity.kt` | Compose state, bottom tabs, root status, import picker, diagnostic screens |
+| `RootRoutes.kt` | Explicit route identifiers, upstream references and availability states |
+| `Core.kt / SafeShell` | UID0 probe, timeout-bound process runner, safe module markers |
+| `ModuleImporter.kt` | SAF staging, bounded ZIP inspection, explicit install confirmation and runtime delegation |
+| `LocalStore` | Persistent theme selection, capped app-local diagnostic journal |
+| `RootProvider / VeyraRuntimeBridge` | Contracts for future *separately validated* native providers, not current exploit implementations |
 
-`su -c id` with an actual UID 0 response is the sole root verification condition. Manager presence, `su` path existence, certificates, and setup indicators are not verification.
+**Authority:** VeyraCore only marks root verified when a bounded authorized `su -c id` invocation actually returns UID0. The presence of KernelSU, a certificate, executable file or claim of system UID1000 is not sufficient. Each mutating module operation repeats its root check.
 
-When root is verified, the module adapter reads `/data/adb/modules` and manages only `disable` and `remove` marker files. It does not implement kernel operations or a KernelSU backend. `module.prop` is treated as untrusted text and parsed without sourcing it.
+**Modules:** The file adapter reads `/data/adb/modules` and handles supported disable/remove markers through an approved root context. Selected ZIP files are copied to private cache after a document-picker selection and are inspected without extracting locally. The installer checks an existing executable `ksud` and hands the ZIP to that compatible runtime only when authorized and explicitly confirmed. No module scripts are directly executed by VeyraCore. A matching policy backend is not bundled.
+
+**Separation:** Exploit discovery is metadata-only. Distinct future interfaces will be required for native GhostLock/DirtyFrag providers, exact manufacturer build matching, a first-party privileged helper, and a first-party SU-policy backend. No remote payload download or dynamic code loading is in scope.
+
+**Testing:** Kotlin JVM tests cover exact profile matching, module IDs and ZIP validation; physical device tests remain necessary for UI, real root grants and module installation.
