@@ -1,6 +1,7 @@
 package ctrl.veyracore
 
 import android.app.Application
+import android.content.Context
 import android.net.Uri
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -58,6 +59,11 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent { VeyraApp(vm) }
     }
+
+    override fun onResume() {
+        super.onResume()
+        vm.onAppResumed()
+    }
 }
 
 class VeyraViewModel(app: Application) : AndroidViewModel(app) {
@@ -71,15 +77,40 @@ class VeyraViewModel(app: Application) : AndroidViewModel(app) {
     var checking by mutableStateOf(false); private set
     var modules by mutableStateOf<List<RootModule>>(emptyList()); private set
     var moduleStatus by mutableStateOf("Noch nicht geladen"); private set
+    var providerStatus by mutableStateOf<String?>(null); private set
+    var activityRevision by mutableIntStateOf(0); private set
+    private var pendingExternalRootCheck = false
     var logs by mutableStateOf(store.logs()); private set
     var exportStatus by mutableStateOf<String?>(null); private set
     val device = DeviceInfo.current()
 
-    init { log(Severity.INFO, "VeyraCore gestartet", "v0.2.0-dev; Rootstatus wird nie aus einer App-Erkennung abgeleitet.") }
+    init { log(Severity.INFO, "VeyraCore gestartet", "v0.2.1-dev; Rootstatus wird nie aus einer App-Erkennung abgeleitet.") }
     fun updatePalette(value: Boolean) { berry = value; store.berry = value; log(Severity.INFO, "Design geändert", if (value) "Veyra Berry" else "Veyra OLED") }
     @JvmName("applyBerryPalette") fun setBerry(value: Boolean) = updatePalette(value)
     fun log(severity: Severity, event: String, detail: String) { store.append(AppLog(System.currentTimeMillis(), severity, event, detail)); logs = store.logs() }
     fun clearLogs() { store.clearLogs(); logs = emptyList(); exportStatus = "Lokales Protokoll geleert" }
+    fun openInstalledRootTool(context: Context, tool: InstalledRootTool) {
+        InstalledRootTools.open(context, tool)
+            .onSuccess {
+                pendingExternalRootCheck = true
+                providerStatus = tool.title + " geöffnet. Root wird erst nach Rückkehr erneut überprüft."
+                log(Severity.INFO, "Externes Root-Tool geöffnet", tool.packageName)
+            }
+            .onFailure {
+                providerStatus = "Start fehlgeschlagen: " + (it.message ?: "Unbekannter Fehler")
+                log(Severity.ERROR, "Root-Tool nicht geöffnet", providerStatus ?: "")
+            }
+    }
+
+    fun onAppResumed() {
+        activityRevision += 1
+        if (pendingExternalRootCheck) {
+            pendingExternalRootCheck = false
+            providerStatus = "Zurück in VeyraCore: prüfe vorhandenes UID 0 erneut."
+            checkRoot()
+        }
+    }
+
     fun checkRoot() = viewModelScope.launch {
         checking = true; log(Severity.INFO, "Root-Prüfung", "Begrenzter su -c id Test gestartet")
         val outcome = shell.probe(); probe = outcome; checking = false
@@ -174,10 +205,45 @@ private enum class Tab(val label: String, val icon: androidx.compose.ui.graphics
 @Composable private fun Panel(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) = Card(modifier, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = .72f)), shape = RoundedCornerShape(20.dp)) { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp), content = content) }
 @Composable private fun Meta(label: String, value: String) = Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) { Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(.38f)); Text(value, modifier = Modifier.weight(.62f), maxLines = 2, overflow = TextOverflow.Ellipsis) }
 
-@Composable private fun Home(vm: VeyraViewModel) = Page("VeyraCore", "v0.2.0-dev · unabhängige Runtime-Grundlage") {
+@Composable private fun DevicePanel(info: DeviceInfo) {
+    val context = LocalContext.current
+    Panel {
+        Text("Geräteprofil", style = MaterialTheme.typography.titleMedium)
+        Meta("Hersteller", info.manufacturer)
+        Meta("Modell", info.model)
+        Meta("Android", info.android)
+        Meta("Architektur", info.abi)
+        Meta("Speicherseite", info.pageSize)
+        Meta("Security Patch", info.securityPatch)
+        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = .35f))
+        Text("Kernel", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(info.kernel, style = MaterialTheme.typography.bodyMedium)
+        Text("Build-Fingerprint", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(info.fingerprint, style = MaterialTheme.typography.bodySmall)
+        OutlinedButton(
+            onClick = {
+                val details = "VeyraCore Device Profile\nManufacturer: ${info.manufacturer}\nModel: ${info.model}\nOS: ${info.android}\nABI: ${info.abi}\nPage Size: ${info.pageSize}\nSecurity Patch: ${info.securityPatch}\nKernel: ${info.kernel}\nFingerprint: ${info.fingerprint}"
+                context.getSystemService(ClipboardManager::class.java)
+                    .setPrimaryClip(ClipData.newPlainText("VeyraCore device profile", details))
+            },
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+        ) {
+            Icon(Icons.Rounded.ContentCopy, null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Geräteprofil kopieren")
+        }
+        Text("Exakte Kernel- und Firmwaredaten für die Kompatibilitätsprüfung. Ein ähnlicher Kernel ist keine bestätigte Root-Unterstützung.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable private fun Home(vm: VeyraViewModel) = Page("VeyraCore", "v0.2.1-dev · unabhängige Runtime-Grundlage") {
     item { Panel { Row(verticalAlignment = Alignment.CenterVertically) { Box(Modifier.size(42.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) { Icon(Icons.Rounded.Shield, null, tint = MaterialTheme.colorScheme.onPrimary) }; Spacer(Modifier.width(12.dp)); Column { Text("Root-Status", style = MaterialTheme.typography.titleMedium); StatusText(vm.probe.state, vm.probe.detail) } }; Button(onClick = vm::checkRoot, enabled = !vm.checking, modifier = Modifier.fillMaxWidth()) { if (vm.checking) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp); else Icon(Icons.Rounded.Security, null); Spacer(Modifier.width(8.dp)); Text(if (vm.checking) "Prüfung läuft" else "Root prüfen") }; Text("Nachweis: begrenztes „su -c id“. Kein Status wird aus einem Dateipfad oder einer Manager-App abgeleitet.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) } }
+    item { Text("Root-App starten", style = MaterialTheme.typography.titleLarge) }
+    item { Text("Öffnet ausschließlich bereits installierte Apps. Die externe App entscheidet selbst über ihren Root-Vorgang; VeyraCore führt dabei keinen Exploit aus.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+    InstalledRootTools.known.forEach { tool -> item { InstalledToolPanel(vm, tool) } }
+    vm.providerStatus?.let { message -> item { Text(message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary) } }
     item { Text("Gerät", style = MaterialTheme.typography.titleLarge) }
-    item { Panel { Meta("Hersteller", vm.device.manufacturer); Meta("Modell", vm.device.model); Meta("System", vm.device.android); Meta("Kernel", vm.device.kernel); Meta("Build", vm.device.fingerprint) } }
+    item { DevicePanel(vm.device) }
     item { Text("Einrichtungsstatus", style = MaterialTheme.typography.titleLarge) }
     item { Panel { SetupSteps(vm.probe) } }
     item { Text("Root-Methoden", style = MaterialTheme.typography.titleLarge) }
@@ -213,6 +279,30 @@ private enum class Tab(val label: String, val icon: androidx.compose.ui.graphics
                 Spacer(Modifier.width(8.dp))
                 Text("Quelle & Kompatibilität")
             }
+        }
+    }
+}
+
+@Composable private fun InstalledToolPanel(vm: VeyraViewModel, tool: InstalledRootTool) {
+    val context = LocalContext.current
+    val installed = remember(vm.activityRevision, tool.packageName) { InstalledRootTools.isInstalled(context, tool) }
+    Panel {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(tool.title, style = MaterialTheme.typography.titleMedium)
+                Text(if (installed) "Installiert · externer Start" else "Nicht installiert", color = if (installed) Green else Amber, style = MaterialTheme.typography.labelSmall)
+            }
+            Icon(Icons.Rounded.Smartphone, null, tint = MaterialTheme.colorScheme.primary)
+        }
+        Text(tool.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        OutlinedButton(
+            onClick = { vm.openInstalledRootTool(context, tool) },
+            enabled = installed,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+        ) {
+            Icon(Icons.Rounded.OpenInNew, null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(if (installed) "App öffnen" else "App nicht verfügbar")
         }
     }
 }
@@ -282,8 +372,8 @@ private enum class Tab(val label: String, val icon: androidx.compose.ui.graphics
     }
 }
 @Composable private fun ModuleCard(module: RootModule, vm: VeyraViewModel) { var confirm by remember { mutableStateOf(false) }; Panel { Text(module.name, style = MaterialTheme.typography.titleMedium); Text("${module.id} · ${module.version}", color = MaterialTheme.colorScheme.secondary); if (module.author.isNotBlank()) Text("von ${module.author}", style = MaterialTheme.typography.bodySmall); if (module.description.isNotBlank()) Text(module.description, color = MaterialTheme.colorScheme.onSurfaceVariant); Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { FilledTonalButton(onClick = { vm.toggleModule(module) }, modifier = Modifier.weight(1f)) { Text(if (module.disabled) "Aktivieren" else "Deaktivieren") }; OutlinedButton(onClick = { confirm = true }, modifier = Modifier.weight(1f), enabled = !module.markedForRemoval) { Text(if (module.markedForRemoval) "Entfernung markiert" else "Entfernen") } } }; if (confirm) AlertDialog(onDismissRequest = { confirm = false }, title = { Text("Entfernung markieren?") }, text = { Text("${module.name} wird nicht jetzt gelöscht. Die sichere remove-Markierung wird für den nächsten Boot gesetzt.") }, confirmButton = { TextButton(onClick = { confirm = false; vm.removeModule(module) }) { Text("Für Neustart markieren") } }, dismissButton = { TextButton(onClick = { confirm = false }) { Text("Abbrechen") } }) }
-@Composable private fun Superuser(vm: VeyraViewModel) = Page("Superuser", "Diagnose ohne erfundene Berechtigungsregeln") { item { Panel { Text("Aktuelle App-Autorisierung", style = MaterialTheme.typography.titleMedium); StatusText(vm.probe.state, if (vm.probe.state == Verification.VERIFIED) "Diese App erhielt für den begrenzten UID-0-Test eine su-Antwort." else "Kein aktueller UID-0-Nachweis."); HorizontalDivider(); Text("Veyra Load Runtime", style = MaterialTheme.typography.titleMedium); StatusText(if (vm.probe.runtime == "connected") Verification.VERIFIED else Verification.UNKNOWN, if (vm.probe.runtime == "connected") "Socket /dev/socket/veyra_loadd erreichbar" else "Kein Veyra-Load-Daemon nachgewiesen"); Text("Es gibt in v0.2.0-dev keine Kernel-/Policy-Bridge. Allow/Deny-Listen werden daher nicht vorgetäuscht.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) } } }
+@Composable private fun Superuser(vm: VeyraViewModel) = Page("Superuser", "Diagnose ohne erfundene Berechtigungsregeln") { item { Panel { Text("Aktuelle App-Autorisierung", style = MaterialTheme.typography.titleMedium); StatusText(vm.probe.state, if (vm.probe.state == Verification.VERIFIED) "Diese App erhielt für den begrenzten UID-0-Test eine su-Antwort." else "Kein aktueller UID-0-Nachweis."); HorizontalDivider(); Text("Veyra Load Runtime", style = MaterialTheme.typography.titleMedium); StatusText(if (vm.probe.runtime == "connected") Verification.VERIFIED else Verification.UNKNOWN, if (vm.probe.runtime == "connected") "Socket /dev/socket/veyra_loadd erreichbar" else "Kein Veyra-Load-Daemon nachgewiesen"); Text("Es gibt in v0.2.1-dev keine Kernel-/Policy-Bridge. Allow/Deny-Listen werden daher nicht vorgetäuscht.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) } } }
 
-@Composable private fun Settings(vm: VeyraViewModel) { val context = LocalContext.current; Page("Einstellungen", "Lokale, transparente Optionen") { item { Panel { Text("Erscheinungsbild", style = MaterialTheme.typography.titleMedium); Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) { Column { Text(if (vm.berry) "Veyra Berry" else "Veyra OLED"); Text(if (vm.berry) "#100C14 · Rose #E84A77 · Violett #B17DF6" else "#000000 · Violett #A855F7", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }; Switch(checked = vm.berry, onCheckedChange = vm::setBerry) } } }; item { Panel { Text("Verifikation", style = MaterialTheme.typography.titleMedium); Text("Root wird ausschließlich manuell durch den Button auf der Startseite geprüft. Beim App-Start erfolgt keine stille su-Anfrage.", color = MaterialTheme.colorScheme.onSurfaceVariant) } }; item { Panel { Text("Runtime & Credits", style = MaterialTheme.typography.titleMedium); Text("VeyraCore 0.1.0 · eigener UI-/Runtime-Entwurf. Keine KernelSU-, DirtyFrag- oder GhostSam-Quellen, Binaries oder Payloads enthalten.", color = MaterialTheme.colorScheme.onSurfaceVariant); OutlinedButton(onClick = { val diagnostics = "VeyraCore 0.1.0\n${vm.device}\nRoot: ${vm.probe}"; (context.getSystemService(ClipboardManager::class.java)).setPrimaryClip(ClipData.newPlainText("VeyraCore diagnostics", diagnostics)); vm.log(Severity.INFO, "Diagnose kopiert", "Zwischenablage") }, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Rounded.ContentCopy, null); Spacer(Modifier.width(8.dp)); Text("Diagnose kopieren") } } } }
+@Composable private fun Settings(vm: VeyraViewModel) { val context = LocalContext.current; Page("Einstellungen", "Lokale, transparente Optionen") { item { Panel { Text("Erscheinungsbild", style = MaterialTheme.typography.titleMedium); Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) { Column { Text(if (vm.berry) "Veyra Berry" else "Veyra OLED"); Text(if (vm.berry) "#100C14 · Rose #E84A77 · Violett #B17DF6" else "#000000 · Violett #A855F7", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }; Switch(checked = vm.berry, onCheckedChange = vm::setBerry) } } }; item { Panel { Text("Verifikation", style = MaterialTheme.typography.titleMedium); Text("Root wird ausschließlich manuell durch den Button auf der Startseite geprüft. Beim App-Start erfolgt keine stille su-Anfrage.", color = MaterialTheme.colorScheme.onSurfaceVariant) } }; item { Panel { Text("Runtime & Credits", style = MaterialTheme.typography.titleMedium); Text("VeyraCore 0.2.1-dev · eigener UI-/Runtime-Entwurf. Keine KernelSU-, DirtyFrag- oder GhostSam-Quellen, Binaries oder Payloads enthalten.", color = MaterialTheme.colorScheme.onSurfaceVariant); OutlinedButton(onClick = { val diagnostics = "VeyraCore 0.2.1-dev\n${vm.device}\nRoot: ${vm.probe}"; (context.getSystemService(ClipboardManager::class.java)).setPrimaryClip(ClipData.newPlainText("VeyraCore diagnostics", diagnostics)); vm.log(Severity.INFO, "Diagnose kopiert", "Zwischenablage") }, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Rounded.ContentCopy, null); Spacer(Modifier.width(8.dp)); Text("Diagnose kopieren") } } } }
 }
 @Composable private fun Logs(vm: VeyraViewModel) = Page("Logs", "Lokal gespeichert · exportierbar ohne Speicherberechtigung") { item { Panel { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) { Button(onClick = vm::exportLogs, modifier = Modifier.weight(1f)) { Icon(Icons.Rounded.FileDownload, null); Spacer(Modifier.width(6.dp)); Text("Export") }; OutlinedButton(onClick = vm::clearLogs, modifier = Modifier.weight(1f)) { Icon(Icons.Rounded.DeleteOutline, null); Spacer(Modifier.width(6.dp)); Text("Leeren") } }; vm.exportStatus?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) } } }; items(vm.logs, key = { it.epochMs.toString() + it.event }) { entry -> Panel { Text(entry.event, style = MaterialTheme.typography.titleMedium); Text("${DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.MEDIUM).format(Date(entry.epochMs))} · ${entry.severity}", color = if (entry.severity == Severity.ERROR) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.bodySmall); Text(entry.detail, color = MaterialTheme.colorScheme.onSurfaceVariant) } } }

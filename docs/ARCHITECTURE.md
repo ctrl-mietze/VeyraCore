@@ -6,6 +6,7 @@ The `ctrl.veyracore` Android app contains a Compose UI, validated method registr
 |---|---|
 | `MainActivity.kt` | Compose state, bottom tabs, root status, import picker, diagnostic screens |
 | `RootRoutes.kt` | Explicit route identifiers, upstream references and availability states |
+| `InstalledRootTools.kt` | Allowlisted local package visibility, explicit user-launched app transitions, return-and-recheck lifecycle; never in-process exploit execution |
 | `Core.kt / SafeShell` | UID0 probe, timeout-bound process runner, safe module markers |
 | `ModuleImporter.kt` | SAF staging, bounded ZIP inspection, explicit install confirmation and runtime delegation |
 | `LocalStore` | Persistent theme selection, capped app-local diagnostic journal |
