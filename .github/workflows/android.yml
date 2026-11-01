@@ -19,7 +19,7 @@ jobs:
         run: |
           SDK_MANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -Vr | head -n 1)"
           test -n "$SDK_MANAGER"
-          "$SDK_MANAGER" --install "platforms;android-37"
+          "$SDK_MANAGER" --channel=3 --install "platforms;android-37"
       - name: Verify Kotlin/JVM tests and build the APK
         run: bash ./gradlew testDebugUnitTest assembleDebug --no-daemon
       - name: Upload development APK
