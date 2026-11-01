@@ -3,7 +3,7 @@
 ## Delivered
 
 - Independent single-module Android application, Kotlin + Jetpack Compose / Material 3.
-- Verified package identity: `ctrl.veyracore`; app label `VeyraCore`; version `0.1.0`; min SDK 33, target SDK 35, compile SDK 37.
+- Verified package identity: `ctrl.veyracore`; app label `VeyraCore`; version `0.1.0`; min SDK 33, target SDK 35, compile SDK 36.
 - OLED (`#000000`, `#0B0A0F`, `#A855F7`) and Berry (`#100C14`, `#1B1520`, `#E83A67`, `#B078EB`) selectable palettes, persisted locally; edge-to-edge system bars and labelled navigation.
 - Home, Settings, and Logs are always present. Modules and Superuser appear only after a live UID-0 result from bounded `su -c id`.
 - Real device model/manufacturer/Android/kernel/fingerprint display; six setup indicators remain unknown except for evidence actually collected.
@@ -15,10 +15,10 @@
 
 ## Verification performed
 
-- `gradlew.bat testDebugUnitTest assembleDebug --no-daemon` passed on 01 Nov 2026 with JDK 17 / Android SDK API 37.
+- `gradlew.bat testDebugUnitTest assembleDebug --no-daemon` passed on 01 Nov 2026 with JDK 17 / Android SDK API 36.
 - Five JVM tests passed: three exact-profile matcher cases and two module-ID sanitization cases.
 - `aapt dump badging` verified the generated APK reports `package: name='ctrl.veyracore'`, `versionName='0.1.0'`, `sdkVersion:'33'`, and `targetSdkVersion:'35'`.
-- Debug APK copied and existence verified: `C:\Users\Mietze\Downloads\VeyraCore-v0.1.0-dev-debug.apk` (64,085,325 bytes after the branded launcher rebuild; SHA-256 `43260b6ba17ea34097ebbfdb05773bc1a5abf8ec307ef3b0464b49795606d08c`).
+- Debug APK copied and existence verified: `C:\Users\Mietze\Downloads\VeyraCore-v0.1.0-dev2-debug.apk` (108,159,547 bytes after stable API-36 dependency alignment; SHA-256 `50f0954452e1dfc3b6468c364dfdf9139cd1fa389d6ba768c7c39f24d115ac30`).
 
 ## Deliberately not claimed / remaining work
 

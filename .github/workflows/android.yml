@@ -15,11 +15,11 @@ jobs:
           java-version: '17'
       # The hosted Ubuntu runner already ships Android command-line tools.
       # Avoid the legacy SDK 'tools' package requested by setup-android v3.
-      - name: Install Android API 37
+      - name: Install Android API 36
         run: |
           SDK_MANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -Vr | head -n 1)"
           test -n "$SDK_MANAGER"
-          "$SDK_MANAGER" --channel=3 --install "platforms;android-37"
+          "$SDK_MANAGER" --install "platforms;android-36"
       - name: Verify Kotlin/JVM tests and build the APK
         run: bash ./gradlew testDebugUnitTest assembleDebug --no-daemon
       - name: Upload development APK

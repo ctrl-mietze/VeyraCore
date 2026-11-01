@@ -26,7 +26,7 @@ Third-party source and payload binaries are not included in the initial tree; ad
 
 ## Build
 
-With JDK 17 and Android SDK API 37 installed:
+With JDK 17 and Android SDK API 36 installed:
 
 ```powershell
 $env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
