@@ -1,30 +1,36 @@
-# VeyraCore 0.1.0 implementation report
+# VeyraCore 0.2.0-dev implementation report
 
 ## Delivered
 
-- Independent single-module Android application, Kotlin + Jetpack Compose / Material 3.
-- Verified package identity: `ctrl.veyracore`; app label `VeyraCore`; version `0.1.0`; min SDK 33, target SDK 35, compile SDK 36.
-- OLED (`#000000`, `#0B0A0F`, `#A855F7`) and Berry (`#100C14`, `#1B1520`, `#E83A67`, `#B078EB`) selectable palettes, persisted locally; edge-to-edge system bars and labelled navigation.
-- Home, Settings, and Logs are always present. Modules and Superuser appear only after a live UID-0 result from bounded `su -c id`.
-- Real device model/manufacturer/Android/kernel/fingerprint display; six setup indicators remain unknown except for evidence actually collected.
-- Root probe uses bounded subprocesses. It does not infer root from a path or installed manager.
-- Module adapter reads `/data/adb/modules` only through `su` after verification; property files are parsed as text, module IDs are constrained, enable/disable uses only `disable`, and removal is a confirmed next-boot `remove` marker.
-- Structured diagnostics persist app-private; export uses `MediaStore.Downloads` without broad storage permission.
-- Provider/runtime interfaces and exact profile matcher are ready for a future independently reviewed implementation. The built-in supported profile registry is intentionally empty.
-- Documentation and CI debug workflow included. No third-party root source, payload, binary, profile catalog, kernel hook, or driver was copied.
+- Version advanced from `0.1.0` to `0.2.0-dev` while retaining application ID `ctrl.veyracore`, min SDK 33, target SDK 35, and compile SDK 36.
+- Reworked the Compose UI into a cohesive Material 3 surface with Veyra OLED and Veyra Berry persisted themes, branded adaptive icon resources, readable cards, safe drawing insets, and adaptive bottom/rail navigation.
+- Added always-present Home, Root, Settings, and Logs destinations. Modules and Superuser are gated by a current, strict UID-0 result.
+- Added detailed device evidence: Android/API, security patch, firmware/build identity, fingerprint, kernel release, KMI, ABI, page size, UID class, SELinux result, and Veyra Load socket probe.
+- Added a real provider interface and registry with distinct method IDs, provenance, exact profile matching, and honest availability states. GhostLock, DirtyFrag, and VX Cert / Re-Root are selection/preparation-only in this build.
+- Kept the existing safe module marker actions and added bounded SAF ZIP preview plus confirmed `ksud module install` support only when the command help is verified. Installation is re-verified against `/data/adb/modules` before success is reported.
+- Added strict UID parsing tests, exact profile tests including kernel/firmware/ABI/page/KMI, provider registry tests, and safe ZIP tests including symlink metadata.
+- Updated the offline port catalog, architecture boundary, provider status, README, and third-party provenance policy.
 
-## Verification performed
+## Verification
 
-- `gradlew.bat testDebugUnitTest assembleDebug --no-daemon` passed on 01 Nov 2026 with JDK 17 / Android SDK API 36.
-- Five JVM tests passed: three exact-profile matcher cases and two module-ID sanitization cases.
-- `aapt dump badging` verified the generated APK reports `package: name='ctrl.veyracore'`, `versionName='0.1.0'`, `sdkVersion:'33'`, and `targetSdkVersion:'35'`.
-- Debug APK copied and existence verified: `C:\Users\Mietze\Downloads\VeyraCore-v0.1.0-dev2-debug.apk` (108,159,547 bytes after stable API-36 dependency alignment; SHA-256 `50f0954452e1dfc3b6468c364dfdf9139cd1fa389d6ba768c7c39f24d115ac30`).
+The final build/test command, APK identity, size, and SHA-256 are recorded below after the final verified build:
 
-## Deliberately not claimed / remaining work
+- Command: `gradlew.bat testDebugUnitTest assembleDebug --no-daemon`
+- Toolchain: JDK 17, Android SDK API 36, Gradle wrapper distribution 9.5.1.
+- Unit tests: see the final Gradle report and the handoff summary.
+- Package/application ID: `ctrl.veyracore`.
+- Version: `0.2.0-dev`.
+- APK: `C:\Users\Mietze\Downloads\VeyraCore-v0.2.0-dev-debug.apk`.
+- SHA-256: to be filled from the final copied APK in this working tree.
 
-- No GhostLock, DirtyFrag/CVE-2026-43284, Root My Galaxy, or Veyra Load exploit/runtime is integrated.
-- No Veyra Load daemon or policy backend exists; Superuser intentionally provides diagnostics only.
-- No device-level root/module behavior was exercised on a physical rooted Android device in this workstation build. The APK and JVM logic are verified, while on-device outcomes remain device/provider dependent.
-- An original adaptive Veyra launcher icon has now been added, rebuilt, and verified.
+## Explicit non-claims
 
-The independent source is committed and published in ctrl-mietze/VeyraCore. This remains a development preview, not a production jailbreak release.
+- No GhostLock, DirtyFrag, Root My Galaxy, KernelSU driver, kernel module, exploit payload, helper APK, certificate mutation, or Veyra Load daemon was imported.
+- No exact device compatibility is claimed for the S25 Ultra, Pixel, or any other model. The registry has no supported exploit profile until all identity dimensions and a reproducible hardware run are verified.
+- Superuser is read-only. There is no policy backend and no spoofed grant path.
+- A successful `ksud` command is not accepted as module installation success until the module is visible in a fresh, authorized module listing.
+- No device was installed or modified automatically by this build task.
+
+## Provenance
+
+The application code in this repository is independently authored. The previous working VeyraCore source and Raspberry Manager source were inspected read-only for architecture and visual direction. No source, binary, private token, keystore, helper identity, or unrelated GPL implementation was copied. See [THIRD_PARTY.md](THIRD_PARTY.md) for attribution and reuse boundaries.

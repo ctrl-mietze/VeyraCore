@@ -10,3 +10,10 @@ local.properties
 .codex_task.txt
 codex-result.txt
 *.log
+
+# Local Android build caches and private signing assets
+.kotlin/
+.cxx/
+*.p12
+*.pkcs12
+*.pem
