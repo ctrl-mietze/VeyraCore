@@ -11,7 +11,9 @@
 
 ## Status
 
-**Experimental development.** This repository is being established from a clean, independent codebase. Do not treat an unintegrated exploit or a UI preview as a working rooting method.
+**0.1.0 development foundation.** The Compose app builds as `ctrl.veyracore` (min SDK 33) and can live alongside `ctrl.mietze.veyracore` and `ctrl.mietze.veyraroot`. It provides two persistent dark palettes, real device metadata, a bounded `su -c id` proof, local structured logs/Downloads export, and cautious management of pre-existing `/data/adb/modules` modules after a UID-0 proof.
+
+This is not a root exploit, a boot-image patcher, or a replacement kernel manager. GhostLock, DirtyFrag, Root My Galaxy discovery, Veyra Load, and a policy backend are deliberately shown as unverified/future unless a separately reviewed runtime is integrated.
 
 ## Relevant upstream research
 
@@ -24,4 +26,13 @@ Third-party source and payload binaries are not included in the initial tree; ad
 
 ## Build
 
-The Android project and CI workflow are under development. Do not download APKs from unverified sources claiming to be official VeyraCore builds.
+With JDK 17 and Android SDK API 37 installed:
+
+```powershell
+$env:ANDROID_HOME = 'C:\Users\Mietze\AppData\Local\Android\Sdk'
+.\gradlew.bat testDebugUnitTest assembleDebug --no-daemon
+```
+
+The resulting development APK is `app/build/outputs/apk/debug/app-debug.apk`. It is normally debug-signed and must not be presented as a production/rooting release.
+
+See [architecture](docs/ARCHITECTURE.md), [provider status](docs/ROOT_PROVIDER_STATUS.md), [port registry](docs/PORT_REGISTRY.md), and [third-party policy](THIRD_PARTY.md).
