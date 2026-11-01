@@ -7,4 +7,6 @@ local.properties
 *.jks
 *.keystore
 .codex/
+.codex_task.txt
+codex-result.txt
 *.log

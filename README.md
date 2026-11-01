@@ -3,7 +3,7 @@
 **VeyraCore** is an independent Android root-management and temporary-root research project by ctrl-mietze.
 
 - Android application ID: `ctrl.veyracore`
-- Two visual themes: **Veyra OLED** (true black + violet) and **Veyra Berry** (rose/violet + charcoal).
+- Two visual themes: **Veyra OLED** (true black + violet) and **Veyra Berry** (rose/violet + charcoal), plus an original adaptive launcher icon.
 - Device-first compatibility discovery; exact firmware and kernel profiles must be verified, not guessed.
 - The Home / Settings / Logs navigation is always present; Modules and Superuser appear only when verified root access exists.
 - Architecture separates Android UI, exploit providers, privileged runtime, and module-management interfaces.
@@ -29,7 +29,7 @@ Third-party source and payload binaries are not included in the initial tree; ad
 With JDK 17 and Android SDK API 37 installed:
 
 ```powershell
-$env:ANDROID_HOME = 'C:\Users\Mietze\AppData\Local\Android\Sdk'
+$env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
 .\gradlew.bat testDebugUnitTest assembleDebug --no-daemon
 ```
 

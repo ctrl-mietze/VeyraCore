@@ -18,13 +18,13 @@
 - `gradlew.bat testDebugUnitTest assembleDebug --no-daemon` passed on 01 Nov 2026 with JDK 17 / Android SDK API 37.
 - Five JVM tests passed: three exact-profile matcher cases and two module-ID sanitization cases.
 - `aapt dump badging` verified the generated APK reports `package: name='ctrl.veyracore'`, `versionName='0.1.0'`, `sdkVersion:'33'`, and `targetSdkVersion:'35'`.
-- Debug APK copied and existence verified: `C:\Users\Mietze\Downloads\VeyraCore-v0.1.0-dev-debug.apk` (63,597,838 bytes at verification).
+- Debug APK copied and existence verified: `C:\Users\Mietze\Downloads\VeyraCore-v0.1.0-dev-debug.apk` (64,085,325 bytes after the branded launcher rebuild; SHA-256 `43260b6ba17ea34097ebbfdb05773bc1a5abf8ec307ef3b0464b49795606d08c`).
 
 ## Deliberately not claimed / remaining work
 
 - No GhostLock, DirtyFrag/CVE-2026-43284, Root My Galaxy, or Veyra Load exploit/runtime is integrated.
 - No Veyra Load daemon or policy backend exists; Superuser intentionally provides diagnostics only.
 - No device-level root/module behavior was exercised on a physical rooted Android device in this workstation build. The APK and JVM logic are verified, while on-device outcomes remain device/provider dependent.
-- The launcher currently uses the platform fallback icon; bespoke branded launcher artwork is not included in this foundation.
+- An original adaptive Veyra launcher icon has now been added, rebuilt, and verified.
 
-No push was performed.
+The independent source is committed and published in ctrl-mietze/VeyraCore. This remains a development preview, not a production jailbreak release.
