@@ -60,6 +60,10 @@ object RootResearchIndex {
         ResearchPort("zenfone9-ghostlock", "ASUS Zenfone 9", "https://github.com/CKwasd/zenfone9-ghostlock"),
         ResearchPort("meizu21-ghostlock-root", "Meizu 21", "https://github.com/ymh001/meizu21-ghostlock-root"),
         ResearchPort("GhostLock-5.10", "Amazon Fire Max 11 / Fire TV", "https://github.com/CrackerCat/GhostLock-5.10"),
+        ResearchPort("Galaxy S26 GhostLock", "Samsung S26-Serie · experimenteller Port", "https://github.com/snothin/ghostlock-s26"),
+        ResearchPort("GhostLock profile-driven app", "Profilkatalog für exakt passende uname-Release-Kernel", "https://github.com/YuKongA/ghostlock-app"),
+        ResearchPort("GhostLock on Amazon Fire", "Amazon Fire · gerätespezifische Portforschung", "https://github.com/R0rt1z2/GhostLock"),
+        ResearchPort("Extended GhostLock profile index", "Weitere gerätespezifische Kernel-Profile", "https://github.com/AriyanPegu/ghostlock-app"),
         ResearchPort("DirtyFrag", "Kernel- und KMI-spezifische Forschung", "https://github.com/mitschud/DirtyFrag"),
         ResearchPort("KernelSU module reference", "Modulformat und SU-Architektur", "https://github.com/tiann/KernelSU"),
         ResearchPort("Temporary Root index", "Weitere öffentliche Ports und Profile", "https://github.com/fynks/awesome-temporary-root")

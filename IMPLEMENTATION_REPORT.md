@@ -1,4 +1,26 @@
-# VeyraCore v0.2.0-dev — Implementation report (2026-11-01)
+# VeyraCore v0.2.1-dev — Implementation report (2026-11-01)
+
+## Current build — 0.2.1-dev
+
+- Original `ctrl.veyracore` Android app and original Veyra OLED / Berry palettes retained. Existing user apps are not overwritten.
+- Added real installed-app discovery and allowlisted explicit launcher handoff for Veyra Root, ZF6Root, and Root My Galaxy Next.
+- Added automatic bounded UID-0 recheck after returning from external root apps; launch alone never changes the verified root state.
+- Added ABI, page size, and security-patch diagnostics.
+- Research index expanded from 14 to **18** verified repository links, **not executable root ports**.
+- Kept real existing-root module ZIP staging/validation and compatible existing-runtime module controls.
+- Added five new tests: installed-tool allowlist (3) and research-index integrity (2).
+- **Verified on Windows: `testDebugUnitTest assembleDebug --no-daemon -Pkotlin.incremental=false -Pkotlin.compiler.execution.strategy=in-process` — BUILD SUCCESSFUL; 14/14 JUnit tests.**
+- Debug APK: `app/build/outputs/apk/debug/app-debug.apk` — **59,198,927 bytes**.
+- SHA-256: `b6aa482841d593d5eee97f0c70b1096e838dc96ada754002e706ba61527edc4e`.
+
+### Not delivered
+
+- Native GhostLock or DirtyFrag exploit chain, privileged Veyra Load daemon and kernel drivers, universal certificate-based reroot and an independent SU-policy backend remain unimplemented.
+- No device-root attempt or cold-boot persistence test has been performed using this 0.2.1 app. Installed-tool handoff and UI require physical-device acceptance tests.
+
+---
+
+## Historical baseline — v0.2.0-dev
 
 ## Implemented in this development iteration
 

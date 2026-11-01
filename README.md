@@ -5,7 +5,7 @@
 
 **VeyraCore** is an independent Android application for inspecting root state, exploring device-specific temporary-root compatibility, and managing installed root modules when **genuine UID 0** access is already present. It is not a renamed KernelSU manager, kernel patcher, or a universal exploit launcher.
 
-**Package** `ctrl.veyracore` · **Current preview** `0.2.0-dev` · **Android** 13+ (API 33) · **Project** VeyraCore by ctrl-mietze.
+**Package** `ctrl.veyracore` · **Current preview** `0.2.1-dev` · **Android** 13+ (API 33) · **Project** VeyraCore by ctrl-mietze.
 
 ## Two Veyra identities
 
@@ -20,7 +20,8 @@ Both themes are selectable within the application and saved across launches. The
 ## Inside the Android application
 
 - **Home:** verified root state, device and firmware information, six individual setup checkpoints, and independent root-method cards.
-- **Root method catalog:** Existing Root / SU, GhostLock, DirtyFrag, and Veyra Reroot / Helper. Source links and status indicate what is known and what is not installed or proven. An expandable research index presents 14 independent upstream references, without importing their native exploits.
+- **Root method catalog:** Existing Root / SU, GhostLock, DirtyFrag, and Veyra Reroot / Helper. Source links and status indicate what is known and what is not installed or proven. An expandable research index presents 18 independent upstream references, without importing their native exploits.
+- **Installed root tools:** explicit launch hand-off for a local Veyra Root, ZF6Root or Root My Galaxy Next installation, followed by a new UID-0 verification on return. The app never runs the external tool's exploit itself.
 - **Modules:** appear after a real UID-0 proof. Inspect existing modules, toggle enable/disable, mark removal for next boot and import a ZIP selected with the Android document picker. The archive is scanned for path traversal, invalid entries and oversized extraction before being handed to a compatible, verified existing module installer after an explicit confirmation.
 - **Superuser:** displays real evidence; **no fabricated permissions, allowlists or privileged daemon**.
 - **Settings:** change color palette and copy diagnostic information.
@@ -53,6 +54,9 @@ Debug output: `app/build/outputs/apk/debug/app-debug.apk`. The debug APK is for 
 - [Brand and interaction guide](docs/DESIGN_SYSTEM.md) — Veyra OLED / Veyra Berry palettes and screen principles.
 - [Third-party credits](THIRD_PARTY.md) — external research and the obligation to retain licensed authorship when code is used.
 - [Implementation report](IMPLEMENTATION_REPORT.md) — specifically what is delivered and what still needs on-device tests.
+- [Development release notes](docs/RELEASE_NOTES_0.2.1.md) — verified changes in the new preview.
+- [Contributing](CONTRIBUTING.md) — exact-build evidence and contribution standards.
+- [Security policy](SECURITY.md) — private vulnerability reporting and root trust boundaries.
 
 ## Research references
 

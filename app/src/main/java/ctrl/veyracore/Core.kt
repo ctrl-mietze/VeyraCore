@@ -13,9 +13,29 @@ import java.util.concurrent.TimeUnit
 enum class Verification { UNKNOWN, VERIFIED, NOT_VERIFIED, ERROR }
 enum class Severity { INFO, SUCCESS, WARNING, ERROR }
 
-data class DeviceInfo(val manufacturer: String, val model: String, val android: String, val kernel: String, val fingerprint: String) {
+data class DeviceInfo(
+    val manufacturer: String,
+    val model: String,
+    val android: String,
+    val kernel: String,
+    val fingerprint: String,
+    val abi: String = "Unbekannt",
+    val pageSize: String = "Unbekannt",
+    val securityPatch: String = "Unbekannt"
+) {
     companion object {
-        fun current() = DeviceInfo(Build.MANUFACTURER.ifBlank { "Unbekannt" }, Build.MODEL.ifBlank { "Unbekannt" }, "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})", System.getProperty("os.version") ?: "Unbekannt", Build.FINGERPRINT ?: "Unbekannt")
+        fun current() = DeviceInfo(
+            manufacturer = Build.MANUFACTURER.ifBlank { "Unbekannt" },
+            model = Build.MODEL.ifBlank { "Unbekannt" },
+            android = "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})",
+            kernel = System.getProperty("os.version") ?: "Unbekannt",
+            fingerprint = Build.FINGERPRINT ?: "Unbekannt",
+            abi = Build.SUPPORTED_ABIS.firstOrNull() ?: "Unbekannt",
+            pageSize = runCatching {
+                android.system.Os.sysconf(android.system.OsConstants._SC_PAGESIZE).toString() + " B"
+            }.getOrDefault("Unbekannt"),
+            securityPatch = Build.VERSION.SECURITY_PATCH ?: "Unbekannt"
+        )
     }
 }
 data class RootProbe(val state: Verification = Verification.UNKNOWN, val detail: String = "Noch nicht geprüft", val selinux: String? = null, val runtime: String? = null)

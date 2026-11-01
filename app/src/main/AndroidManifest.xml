@@ -1,4 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <queries>
+        <package android:name="ctrl.mietze.veyraroot" />
+        <package android:name="de.veyracore.zf6root" />
+        <package android:name="dev.rushiranpise.rmgnext" />
+    </queries>
     <application android:allowBackup="false" android:label="VeyraCore" android:icon="@mipmap/ic_launcher" android:theme="@style/Theme.VeyraCore" android:supportsRtl="true">
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
