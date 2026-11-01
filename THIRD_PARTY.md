@@ -1,8 +1,8 @@
 # Third-party notice and source policy
 
-VeyraCore v0.1.0 contains no copied source, binaries, payloads, profile databases, kernel modules, or driver code from the projects below. They were consulted only to classify future integration boundaries.
+VeyraCore v0.2.0-dev contains no copied native source, binaries, payloads, kernel modules, or driver code from the projects below. Public documentation is referenced for interoperability and development research only. The built-in source catalog is an original, non-executable index. Module installation delegates only to a compatible, pre-existing runtime after consent.
 
-| Project | Upstream | Published license observed | v0.1.0 use |
+| Project | Upstream | Published license observed | v0.2.0-dev use |
 |---|---|---|---|
 | DirtyFrag | https://github.com/mitschud/DirtyFrag | GPL-2.0 | No code or artifacts imported. Any future reuse requires GPL compatibility review and notices. |
 | KernelSU | https://github.com/tiann/KernelSU | GPL-3.0 | No code or artifacts imported. VeyraCore does not use its kernel hooks. |

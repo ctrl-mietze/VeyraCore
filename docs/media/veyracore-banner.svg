@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 340" role="img" aria-label="VeyraCore - independent Android root workspace">
+  <rect width="1200" height="340" rx="28" fill="#000000"/>
+  <rect x="9" y="9" width="1182" height="322" rx="23" fill="#080808" stroke="#40364A" stroke-width="2"/>
+  <path d="M 320 70 L 320 270" stroke="#332B40" stroke-width="2"/>
+  <g transform="translate(65 49) scale(2.15)">
+    <path fill="#17111D" d="M54,14 C76,14 94,32 94,54 C94,76 76,94 54,94 C32,94 14,76 14,54 C14,32 32,14 54,14 Z"/>
+    <path fill="none" stroke="#4C365E" stroke-width="1.4" d="M54,15 C76,15 93,32 93,54 C93,76 76,93 54,93 C32,93 15,76 15,54 C15,32 32,15 54,15 Z"/>
+    <path fill="#B478F8" d="M26,31 L41,31 L54,65 L67,31 L82,31 L61,81 L47,81 Z"/>
+    <path fill="#E84A77" d="M70,23 L82,23 L76,39 L65,39 Z"/>
+  </g>
+  <text x="366" y="143" fill="#F8F5FB" font-family="Segoe UI,Arial,sans-serif" font-size="83" font-weight="700" letter-spacing="-3">Veyra<tspan fill="#B478F8">Core</tspan></text>
+  <text x="371" y="189" fill="#D3CBD9" font-family="Segoe UI,Arial,sans-serif" font-size="25" letter-spacing="0.8">Android root workspace</text>
+  <path d="M 371 220 L 1144 220" stroke="#31283A"/>
+  <g font-family="Segoe UI,Arial,sans-serif" font-size="20" font-weight="600">
+    <rect x="371" y="249" width="137" height="42" rx="11" fill="#23162F" stroke="#765297"/>
+    <text x="398" y="277" fill="#D9B6FF">OLED</text>
+    <rect x="523" y="249" width="142" height="42" rx="11" fill="#291521" stroke="#8C3A59"/>
+    <text x="544" y="277" fill="#FF89B0">BERRY</text>
+    <rect x="680" y="249" width="160" height="42" rx="11" fill="#101315" stroke="#3D5E51"/>
+    <text x="706" y="277" fill="#A0E7BD">KOTLIN</text>
+    <text x="871" y="277" fill="#AB9FAF">INDEPENDENT</text>
+  </g>
+  <circle cx="1141" cy="50" r="7" fill="#A855F7"/>
+  <circle cx="1117" cy="50" r="7" fill="#E84A77"/>
+</svg>
