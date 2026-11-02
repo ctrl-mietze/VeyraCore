@@ -63,13 +63,20 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         vm.onAppResumed()
+        vm.maybeStartNotification(this)
     }
 }
 
 class VeyraViewModel(app: Application) : AndroidViewModel(app) {
     private val store = LocalStore(app)
     private val shell = SafeShell()
+    private val veyraLoad = VeyraLoadRuntime(shell)
+    var load by mutableStateOf(VeyraLoadSnapshot()); private set
+    var loadBusy by mutableStateOf(false); private set
     private val moduleImporter = ModuleImporter(app, shell)
+    private val helperInstaller = HelperPackageInstaller(app)
+    var stagedHelper by mutableStateOf<StagedHelperApk?>(null); private set
+    var helperInstallStatus by mutableStateOf("Helper-Update noch nicht gewählt"); private set
     var stagedModule by mutableStateOf<StagedModule?>(null); private set
     var moduleImportStatus by mutableStateOf("Module nur aus vertrauenswürdigen Quellen installieren"); private set
     var berry by mutableStateOf(store.berry); private set
@@ -95,7 +102,7 @@ class VeyraViewModel(app: Application) : AndroidViewModel(app) {
     val device = DeviceInfo.current()
 
     init {
-        log(Severity.INFO, "VeyraCore gestartet", "v0.3.0-dev; Root UID 0 und Helper UID 1000 getrennt")
+        log(Severity.INFO, "VeyraCore gestartet", "v0.4.0-dev; Root UID 0 und Helper UID 1000 getrennt")
         refreshHelper()
         refreshPayloadFeeds()
     }
@@ -127,13 +134,29 @@ class VeyraViewModel(app: Application) : AndroidViewModel(app) {
     fun refreshHelper() {
         val context = getApplication<Application>()
         val result = HelperInspector.check(context)
-        if (result != helper) log(if (result.acceptedSystemUid) Severity.SUCCESS else Severity.INFO,
-            "Helper-Status", result.detail)
+        // Snapshot timestamps change on every read; only log real package identity changes.
+        if (result.packageName != helper.packageName ||
+            result.uid != helper.uid ||
+            result.signerSha256 != helper.signerSha256) {
+            log(if (result.acceptedSystemUid) Severity.SUCCESS else Severity.INFO,
+                "Helper-Status", result.detail)
+        }
         helper = result
-        if (result.acceptedSystemUid && notificationEnabled && HelperNotificationControl.hasPermission(context)) {
+        notificationActive = HelperNotificationControl.isShown(context)
+    }
+    /** Called only after the Activity is visibly resumed, not from ViewModel.init. */
+    fun maybeStartNotification(context: Context) {
+        if (helper.acceptedSystemUid && notificationEnabled && HelperNotificationControl.hasPermission(context)) {
             HelperNotificationControl.sync(context)
         }
         notificationActive = HelperNotificationControl.isShown(context)
+    }
+    fun refreshVeyraLoad() = viewModelScope.launch {
+        loadBusy = true
+        val outcome = veyraLoad.inspect()
+        load = outcome
+        loadBusy = false
+        log(if (outcome.authorized) Severity.SUCCESS else Severity.INFO, "Veyra Load Runtime", outcome.status)
     }
     fun setNotifications(value: Boolean) {
         notificationEnabled = value
@@ -147,6 +170,39 @@ class VeyraViewModel(app: Application) : AndroidViewModel(app) {
     fun afterNotificationPermission(allowed: Boolean) {
         if (allowed) setNotifications(true)
         else { providerStatus = "Benachrichtigungsberechtigung nicht erteilt."; log(Severity.WARNING, "Benachrichtigung", providerStatus!!) }
+    }
+    fun stageHelperApk(uri: Uri) = viewModelScope.launch {
+        stagedHelper = null
+        helperInstallStatus = "APK wird kontrolliert ..."
+        helperInstaller.stage(uri)
+            .onSuccess {
+                stagedHelper = it
+                helperInstallStatus = "APK geprüft: ${it.packageName} · ${it.versionName} · signiert"
+                log(Severity.SUCCESS, "Helper-Update vorbereitet", helperInstallStatus)
+            }
+            .onFailure {
+                helperInstallStatus = it.message ?: "Helper-APK abgelehnt"
+                log(Severity.ERROR, "Helper-APK nicht akzeptiert", helperInstallStatus)
+            }
+    }
+    fun discardHelperApk() {
+        stagedHelper?.file?.delete()
+        stagedHelper = null
+        helperInstallStatus = "Helper-Update abgebrochen"
+    }
+    fun requestHelperUpdate(context: Context) {
+        val staged = stagedHelper ?: return
+        helperInstaller.requestInstall(context, staged)
+            .onSuccess {
+                helperInstallStatus = "Android-Paketinstaller geöffnet – Erfolg erst nach PackageManager-Prüfung."
+                pendingExternalRootCheck = true
+                log(Severity.INFO, "Helper-Update angefordert", helperInstallStatus)
+            }
+            .onFailure {
+                helperInstallStatus = "Paketinstaller: ${it.message}"
+                log(Severity.ERROR, "Helper-Update nicht gestartet", helperInstallStatus)
+            }
+        stagedHelper = null // Keep the staged file for the external installer until cache cleanup.
     }
     fun setupViaExistingProvider(context: Context) {
         if (helper.acceptedSystemUid) {
@@ -228,7 +284,12 @@ class VeyraViewModel(app: Application) : AndroidViewModel(app) {
         val outcome = shell.probe(); probe = outcome; checking = false
         refreshHelper()
         log(if (outcome.state == Verification.VERIFIED) Severity.SUCCESS else Severity.WARNING, "Root-Prüfung beendet", outcome.detail)
-        if (outcome.state == Verification.VERIFIED) refreshModules()
+        if (outcome.state == Verification.VERIFIED) {
+            refreshVeyraLoad()
+            refreshModules()
+        } else load = VeyraLoadSnapshot(
+            root = outcome.state, status = "Ohne UID0 kein Veyra Load Zugriff"
+        )
     }
     fun refreshModules() = viewModelScope.launch {
         moduleStatus = "Module werden über autorisiertes su gelesen …"
@@ -349,9 +410,10 @@ private enum class Tab(val label: String, val icon: androidx.compose.ui.graphics
     }
 }
 
-@Composable private fun Home(vm: VeyraViewModel) = Page("VeyraCore", "v0.3.0-dev · Root & Helper Setup") {
+@Composable private fun Home(vm: VeyraViewModel) = Page("VeyraCore", "v0.4.0-dev · Veyra Load Runtime") {
     item { Panel { Row(verticalAlignment = Alignment.CenterVertically) { Box(Modifier.size(42.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) { Icon(Icons.Rounded.Shield, null, tint = MaterialTheme.colorScheme.onPrimary) }; Spacer(Modifier.width(12.dp)); Column { Text("Root-Status", style = MaterialTheme.typography.titleMedium); StatusText(vm.probe.state, vm.probe.detail) } }; Button(onClick = vm::checkRoot, enabled = !vm.checking, modifier = Modifier.fillMaxWidth()) { if (vm.checking) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp); else Icon(Icons.Rounded.Security, null); Spacer(Modifier.width(8.dp)); Text(if (vm.checking) "Prüfung läuft" else "Root prüfen") }; Text("Nachweis: begrenztes „su -c id“. Kein Status wird aus einem Dateipfad oder einer Manager-App abgeleitet.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) } }
     item { RootStartPanel(vm) }
+    item { VeyraLoadPanel(vm) }
     item { Text("Root-Provider", style = MaterialTheme.typography.titleLarge) }
     item { Text("Vorhandene Root-App wirklich öffnen und danach UID 0 erneut verifizieren. Der eingebaute Katalog enthält Forschungsquellen, keine ausführbaren Universal-Exploits.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
     InstalledRootTools.known.forEach { tool -> item { InstalledToolPanel(vm, tool) } }
@@ -378,6 +440,39 @@ private enum class Tab(val label: String, val icon: androidx.compose.ui.graphics
     }
     item { ResearchCatalog(vm) }
 }
+@Composable private fun VeyraLoadPanel(vm: VeyraViewModel) {
+    Panel {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Rounded.Memory, null, tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.width(8.dp))
+            Text("Veyra Load · Eigene Runtime-Verwaltung",
+                style = MaterialTheme.typography.titleMedium)
+        }
+        Text("Veyra Load stellt eine eigene Kontrollschicht über einen freigegebenen SU-Provider bereit. Kein eingebauter Kernel-Exploit, keine Umbenennung von KernelSU-Treibern.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        StatusText(vm.load.root, vm.load.status)
+        if (vm.load.authorized) {
+            Meta("Laufzeit", vm.load.backend.title)
+            Meta("SU-Nachweis", "UID ${vm.load.verifiedUid}")
+            Meta("SELinux", vm.load.selinux)
+            Meta("Module", vm.load.moduleCount?.toString() ?: "Nicht lesbar")
+            Meta("Installation", if (vm.load.moduleInstaller) "Über erkannte Runtime" else "Nicht verfügbar")
+        } else {
+            Text("Nach Root-Freigabe prüft Veyra Load die tatsächliche SU-Runtime und den Modulzugriff.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Amber)
+        }
+        OutlinedButton(onClick = vm::refreshVeyraLoad,
+            enabled = !vm.loadBusy,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+            Icon(Icons.Rounded.Refresh, null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(if (vm.loadBusy) "Runtime wird geprüft ..." else "Veyra Load aktualisieren")
+        }
+    }
+}
+
 @Composable private fun RootStartPanel(vm: VeyraViewModel) {
     val context = LocalContext.current
     val selected = RootPortRegistry.all.find { it.id == vm.selectedPort }
@@ -393,7 +488,7 @@ private enum class Tab(val label: String, val icon: androidx.compose.ui.graphics
             horizontalArrangement = Arrangement.SpaceBetween) {
             Column(Modifier.weight(1f)) {
                 Text("Automatische Methodenauswahl")
-                Text(if (vm.automaticSelection) "Exakte Geräteprofile bevorzugen" else
+                Text(if (vm.automaticSelection) "Modell-/Kernel-Kandidaten bevorzugen" else
                     "Manuelle Quelle: ${selected?.title ?: "Noch keine gewählt"}",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -403,7 +498,7 @@ private enum class Tab(val label: String, val icon: androidx.compose.ui.graphics
             horizontalArrangement = Arrangement.SpaceBetween) {
             Column(Modifier.weight(1f)) {
                 Text("Geräte- und Kernelprüfung")
-                Text(if (vm.deviceVerification) "Nur exakte Katalog-Treffer empfehlen" else
+                Text(if (vm.deviceVerification) "Vorauswahl nach Modell und Kernel" else
                     "Deaktiviert: nur manuelle Untersuchung, keine automatische Exploit-Ausführung",
                     style = MaterialTheme.typography.bodySmall, color = Amber)
             }
@@ -417,7 +512,7 @@ private enum class Tab(val label: String, val icon: androidx.compose.ui.graphics
                 Spacer(Modifier.width(7.dp))
                 Column {
                     Text(profile.label, style = MaterialTheme.typography.bodyMedium)
-                    Text("${profile.source} · ${profile.id} · nur Profil-Treffer",
+                    Text("${profile.source} · ${profile.id} · vorläufiger Profil-Treffer",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
@@ -449,6 +544,9 @@ private enum class Tab(val label: String, val icon: androidx.compose.ui.graphics
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
         vm.afterNotificationPermission(it)
     }
+    val helperPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) vm.stageHelperApk(uri)
+    }
     Panel {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Rounded.AdminPanelSettings, null, tint = MaterialTheme.colorScheme.primary)
@@ -457,6 +555,14 @@ private enum class Tab(val label: String, val icon: androidx.compose.ui.graphics
         }
         Text(vm.helper.detail, color = if (vm.helper.acceptedSystemUid) Green else Amber,
             style = MaterialTheme.typography.bodyMedium)
+        vm.helper.packageName?.let { Meta("Paket", it) }
+        vm.helper.versionName?.let { Meta("Version", it) }
+        vm.helper.uid?.let { Meta("Installierte UID", it.toString()) }
+        vm.helper.signerSha256?.let {
+            Text("APK-Signer SHA-256", style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(it, style = MaterialTheme.typography.bodySmall)
+        }
         Text("Zertifikatsannahme wird aus der tatsächlich installierten Android-System-UID 1000 des Helpers abgeleitet. UID 1000 ersetzt keine Root-UID 0. Ein Neustart kann für PackageManager-Änderungen notwendig sein.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (!vm.helper.acceptedSystemUid) {
@@ -492,11 +598,43 @@ private enum class Tab(val label: String, val icon: androidx.compose.ui.graphics
                     modifier = Modifier.fillMaxWidth()) { Text("Helper-Benachrichtigung aktivieren") }
             }
         }
+        if (vm.helper.acceptedSystemUid) {
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = .3f))
+            Text("Helper-APK aktualisieren", style = MaterialTheme.typography.titleSmall)
+            Text("Eigene Installer-Strecke mit Signaturvergleich. Nur eine bereits vertrauenswürdig installierte Helper-Paketkennung wird zum Update angeboten; keine Veränderung der Android-Systemsignatur.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedButton(
+                onClick = { helperPicker.launch(arrayOf(
+                    "application/vnd.android.package-archive", "application/octet-stream")) },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+            ) {
+                Icon(Icons.Rounded.SystemUpdate, null)
+                Spacer(Modifier.width(8.dp))
+                Text("Signierte Helper-APK auswählen")
+            }
+            Text(vm.helperInstallStatus, style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         OutlinedButton(onClick = vm::refreshHelper, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
             Icon(Icons.Rounded.Refresh, null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
             Text("Zertifikat & Helper erneut prüfen")
         }
+    }
+    HelperUpdateConfirmation(vm)
+}
+
+@Composable private fun HelperUpdateConfirmation(vm: VeyraViewModel) {
+    val context = LocalContext.current
+    vm.stagedHelper?.let { staged ->
+        AlertDialog(
+            onDismissRequest = vm::discardHelperApk,
+            title = { Text("Veyra Helper aktualisieren?") },
+            text = { Text("${staged.packageName} · Version ${staged.versionName}. SHA-256 der Signatur wurde mit dem installierten System-Helper abgeglichen. Android entscheidet abschließend über das Paket-Update.") },
+            confirmButton = { TextButton(onClick = { vm.requestHelperUpdate(context) }) { Text("Android-Installer öffnen") } },
+            dismissButton = { TextButton(onClick = vm::discardHelperApk) { Text("Abbrechen") } }
+        )
     }
 }
 
@@ -676,7 +814,32 @@ private enum class Tab(val label: String, val icon: androidx.compose.ui.graphics
     }
 }
 @Composable private fun ModuleCard(module: RootModule, vm: VeyraViewModel) { var confirm by remember { mutableStateOf(false) }; Panel { Text(module.name, style = MaterialTheme.typography.titleMedium); Text("${module.id} · ${module.version}", color = MaterialTheme.colorScheme.secondary); if (module.author.isNotBlank()) Text("von ${module.author}", style = MaterialTheme.typography.bodySmall); if (module.description.isNotBlank()) Text(module.description, color = MaterialTheme.colorScheme.onSurfaceVariant); Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { FilledTonalButton(onClick = { vm.toggleModule(module) }, modifier = Modifier.weight(1f)) { Text(if (module.disabled) "Aktivieren" else "Deaktivieren") }; OutlinedButton(onClick = { confirm = true }, modifier = Modifier.weight(1f), enabled = !module.markedForRemoval) { Text(if (module.markedForRemoval) "Entfernung markiert" else "Entfernen") } } }; if (confirm) AlertDialog(onDismissRequest = { confirm = false }, title = { Text("Entfernung markieren?") }, text = { Text("${module.name} wird nicht jetzt gelöscht. Die sichere remove-Markierung wird für den nächsten Boot gesetzt.") }, confirmButton = { TextButton(onClick = { confirm = false; vm.removeModule(module) }) { Text("Für Neustart markieren") } }, dismissButton = { TextButton(onClick = { confirm = false }) { Text("Abbrechen") } }) }
-@Composable private fun Superuser(vm: VeyraViewModel) = Page("Superuser", "Diagnose ohne erfundene Berechtigungsregeln") { item { Panel { Text("Aktuelle App-Autorisierung", style = MaterialTheme.typography.titleMedium); StatusText(vm.probe.state, if (vm.probe.state == Verification.VERIFIED) "Diese App erhielt für den begrenzten UID-0-Test eine su-Antwort." else "Kein aktueller UID-0-Nachweis."); HorizontalDivider(); Text("Veyra Load Runtime", style = MaterialTheme.typography.titleMedium); StatusText(if (vm.probe.runtime == "connected") Verification.VERIFIED else Verification.UNKNOWN, if (vm.probe.runtime == "connected") "Socket /dev/socket/veyra_loadd erreichbar" else "Kein Veyra-Load-Daemon nachgewiesen"); Text("Es gibt in v0.2.1-dev keine Kernel-/Policy-Bridge. Allow/Deny-Listen werden daher nicht vorgetäuscht.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) } } }
+@Composable private fun Superuser(vm: VeyraViewModel) =
+    Page("Superuser", "Belege und freigegebene Root-Runtime") {
+        item {
+            Panel {
+                Text("UID 0 Freigabe", style = MaterialTheme.typography.titleMedium)
+                StatusText(vm.probe.state, vm.probe.detail)
+                Text("Eine installierte Manager-App oder UID 1000 wird nicht als Root gewertet.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        item {
+            VeyraLoadPanel(vm)
+        }
+        item {
+            Panel {
+                Text("Rechteverwaltung", style = MaterialTheme.typography.titleMedium)
+                Text("Root-Anfragen werden vom vorhandenen SU-Provider autorisiert. VeyraCore kann ohne dessen eigene Berechtigungs-API keine fremden App-Regeln ändern und zeigt deshalb keine erfundene Allow/Deny-Liste.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Aktiver Backend-Typ: ${vm.load.backend.title}",
+                    color = MaterialTheme.colorScheme.secondary,
+                    style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+    }
 
 @Composable private fun Settings(vm: VeyraViewModel) {
     val context = LocalContext.current
@@ -763,11 +926,11 @@ private enum class Tab(val label: String, val icon: androidx.compose.ui.graphics
                 Text("Root-Beweis: su -c id, UID 0. Zertifikatsbeweis: System-UID 1000 des installierten Helpers. Eintrag im GitHub-Katalog ist kein Exploit-Nachweis.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall)
-                Text("VeyraCore 0.3.0-dev · eigenständige App. KernelSU-Module werden nur über tatsächlich verfügbare Root-Runtimes verwaltet. Keine in diese Version kopierten Treiber oder neuen Kernel-Patches.",
+                Text("VeyraCore 0.4.0-dev · eigenständige App. KernelSU-Module werden nur über tatsächlich verfügbare Root-Runtimes verwaltet. Keine in diese Version kopierten Treiber oder neuen Kernel-Patches.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall)
                 OutlinedButton(onClick = {
-                    val diagnostics = "VeyraCore 0.3.0-dev\n${vm.device}\nRoot: ${vm.probe}\nHelper: ${vm.helper}\nProfiles: ${vm.feedStatus}\nAutomatic: ${vm.automaticSelection}\nDeviceCheck: ${vm.deviceVerification}"
+                    val diagnostics = "VeyraCore 0.4.0-dev\n${vm.device}\nRoot: ${vm.probe}\nHelper: ${vm.helper}\nProfiles: ${vm.feedStatus}\nAutomatic: ${vm.automaticSelection}\nDeviceCheck: ${vm.deviceVerification}"
                     context.getSystemService(ClipboardManager::class.java)
                         .setPrimaryClip(ClipData.newPlainText("VeyraCore diagnostics", diagnostics))
                     vm.log(Severity.INFO, "Diagnose kopiert", "Zwischenablage")

@@ -1,3 +1,17 @@
+# VeyraCore 0.4.0-dev — Veyra Load & Helper
+
+Neuer Quellstand der eigenständigen Android-App ctrl.veyracore. 0.4 erweitert den 0.3-Root-Katalog um eine echte, autorisierte SU-Kontrollschicht und eine eigene sichere Helper-Update-Strecke. Das ist keine Behauptung, alle 57 GhostLock-/DirtyFrag-Projekte als Exploit in der APK ausführen zu können.
+
+- Veyra Load prüft UID0 und erkennt SU-/KernelSU-/Magisk-Runtimes, SELinux und Modulbestand.
+- Module lassen sich nach erteilter Root-Berechtigung über einen nachgewiesenen ksud- oder magisk-Installer mit ZIP-Prüfung installieren.
+- Helper: installierte UID, APK-Version und SHA-256 der Signatur werden unabhängig geprüft. Ein bestehender System-UID1000-Helper kann durch eine signaturgleiche APK über den Android-Installer aktualisiert werden.
+- Permanente Benachrichtigung: nur bei UID1000-Nachweis, Berechtigung und passenden Android-Foreground-Service-Bedingungen.
+- 57 Forschungsquellen, manuelle und automatische Profil-Vorauswahl, OLED/Berry-Design, Logs und Module/Superuser-Navigation bleiben erhalten.
+
+[Implementierungsbericht 0.4](IMPLEMENTATION_REPORT_V040.md) · [Architektur](docs/ARCHITECTURE.md) · [Portquellen](docs/PORT_REGISTRY.md)
+
+---
+
 # VeyraCore — 0.3.0-dev Root-Katalog und Helper-Status
 
 **Entwicklungsstand, keine vollständige native GhostLock/DirtyFrag-Suite.** Dieses Projekt ist eine eigenständige Android-App mit dem Paket ctrl.veyracore, kein KernelSU-Fork. Die bisherige Anwendung ctrl.mietze.veyracore bleibt unverändert.

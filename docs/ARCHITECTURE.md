@@ -33,3 +33,13 @@ Das originale RMG-Next-Zertifikatsverfahren passt die Signaturhistorie des Andro
 Der Notification-Service ist an den nachgewiesenen Helper UID1000, POST_NOTIFICATIONS und eine lokale Nutzeroption gebunden. Er verwendet den Android-ForegroundServiceType specialUse und zeigt nur den Helper-Zustand an; UID0 wird separat geprüft. Eine weitere Boot-Benachrichtigung kann bei erlaubtem BOOT_COMPLETED versucht werden. Die Kernel-Uptime ist kein geeigneter Nachweis eines Soft Reboots des Android-Frameworks; Neustart/Reroot sind daher nicht voreilig grün markiert.
 
 Sicherheitsgrenzen: Keine unbekannten Shell-Befehle aus dem Katalog, kein ungeprüfter Binärdownload, keine Änderung der ursprünglichen App oder /data/system, kein stilles Einspielen fremder Kernel-Patches; Root-Module werden nur nach UID0-Revalidierung an eine bereits nachgewiesene kompatible Modul-Runtime gegeben.
+
+## Version 0.4.0-dev – eigenständige Kontrollschicht
+
+VeyraLoadRuntime ist eine eigenentwickelte Kotlin-Schnittstelle über vorhandene, vom Nutzer freigegebene Root-Implementierungen. Sie prüft die Root-Identität mit einem echten Prozess-Aufruf und unterscheidet SU_ONLY, KERNELSU, MAGISK und NONE. Sie ersetzt keine Kernel-Berechtigungsarchitektur; System-UID1000 und UID0 sind strikt getrennt.
+
+VeyraModuleInstaller ermittelt den verfügbaren Modultransport nach Root-Revalidierung, prüft den Importpfad und führt nur fest codierte Installer-Subcommands aus. Das ZIP wird im privaten App-Cache gegen Traversal- und Größenangriffe überprüft. Ausgabe- und Fehlercodes stammen von den tatsächlichen externen Installern.
+
+HelperInspector kontrolliert Paketname, PackageManager-UID, Version und Zertifikat-Hash. Die Update-Strecke HelperPackageInstaller öffnet ausschließlich für bereits akzeptierte UID1000-installierte Helper-Pakete mit identischer Signatur den Android-Paketinstaller. Ein beliebiges APK oder eine neue Signatur kann nicht in den System-SharedUser eingeschleust werden. Ein Android-Signaturbypass ist nicht Bestandteil dieser Updatefunktion.
+
+Die Foreground-Service-Benachrichtigung wird nicht mehr während der Initialisierung des ViewModels gestartet; sie wird aus einer sichtbaren Activity oder aus zulässigem Boot-Kontext angefordert. Die tatsächliche Android-Sichtbarkeit wird separat abgefragt.

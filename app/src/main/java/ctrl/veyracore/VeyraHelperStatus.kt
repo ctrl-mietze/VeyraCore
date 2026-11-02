@@ -14,18 +14,28 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.os.Process
-import android.os.SystemClock
+import java.security.MessageDigest
 
+/** Current package-manager evidence, not a claim to have injected an OS certificate. */
 data class HelperSnapshot(
     val packageName: String? = null,
     val uid: Int? = null,
-    val detail: String = "Helper noch nicht geprüft"
+    val detail: String = "Helper noch nicht geprüft",
+    val versionName: String? = null,
+    val signerSha256: String? = null,
+    val checkedAt: Long = 0L
 ) {
     val installed: Boolean get() = packageName != null
-    /** A PackageManager result after install proves that shared system UID has been accepted. */
-    val acceptedSystemUid: Boolean get() = uid == Process.SYSTEM_UID
+    val acceptedSystemUid: Boolean get() = installed && uid == Process.SYSTEM_UID
+
+    val summary: String get() = when {
+        acceptedSystemUid -> "System-UID 1000 vom PackageManager bestätigt"
+        installed -> "Helper installiert, jedoch nicht als System-UID"
+        else -> "Helper nicht installiert"
+    }
 }
 
+/** Preferred exact-known package IDs. A random application is never treated as trusted helper. */
 object HelperInspector {
     val acceptedPackages = listOf(
         "ctrl.mietze.veyracore.helper",
@@ -34,18 +44,45 @@ object HelperInspector {
     )
 
     fun check(context: Context): HelperSnapshot {
-        for (name in acceptedPackages) {
-            val application = try {
-                @Suppress("DEPRECATION")
-                context.packageManager.getApplicationInfo(name, 0)
-            } catch (_: PackageManager.NameNotFoundException) { continue }
-            val uid = application.uid
-            return HelperSnapshot(name, uid,
-                if (uid == Process.SYSTEM_UID)
-                    "PackageManager bestätigt System-UID 1000 für $name"
-                else "Helper installiert, aber UID $uid statt System-UID 1000")
+        val pm = context.packageManager
+        val discovered = acceptedPackages.mapNotNull { name ->
+            try {
+                val pkg = if (Build.VERSION.SDK_INT >= 33)
+                    pm.getPackageInfo(name, PackageManager.PackageInfoFlags.of(
+                        PackageManager.GET_SIGNING_CERTIFICATES.toLong()
+                    ))
+                else {
+                    @Suppress("DEPRECATION")
+                    pm.getPackageInfo(name, PackageManager.GET_SIGNING_CERTIFICATES)
+                }
+                val app = pkg.applicationInfo ?: return@mapNotNull null
+                val uid = app.uid
+                val cert = pkg.signingInfo?.apkContentsSigners?.firstOrNull()?.toByteArray()
+                val signature = cert?.let {
+                    MessageDigest.getInstance("SHA-256").digest(it)
+                        .joinToString("") { part -> "%02x".format(part.toInt() and 0xff) }
+                }
+                HelperSnapshot(
+                    packageName = name,
+                    uid = uid,
+                    versionName = pkg.versionName,
+                    signerSha256 = signature,
+                    checkedAt = System.currentTimeMillis(),
+                    detail = if (uid == Process.SYSTEM_UID)
+                        "UID 1000: $name · Signatur-Fingerprint erfasst"
+                    else "Installiert: $name, UID $uid (nicht android.uid.system)"
+                )
+            } catch (_: PackageManager.NameNotFoundException) {
+                null
+            } catch (e: Exception) {
+                HelperSnapshot(packageName = name,
+                    detail = "Paketinformation nicht vollständig lesbar: ${e.javaClass.simpleName}")
+            }
         }
-        return HelperSnapshot(detail = "Kein freigegebener Veyra- oder RMG-Helper installiert")
+        // Crucial: do not stop after the first installed but non-system package.
+        return discovered.firstOrNull { it.acceptedSystemUid }
+            ?: discovered.firstOrNull()
+            ?: HelperSnapshot(detail = "Kein kompatibler Veyra/RMG-Helper gefunden")
     }
 }
 
@@ -59,7 +96,8 @@ object HelperNotificationControl {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(ENABLED, true)
 
     fun updatePreference(context: Context, enabled: Boolean) =
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(ENABLED, enabled).apply()
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putBoolean(ENABLED, enabled).apply()
 
     fun hasPermission(context: Context): Boolean =
         Build.VERSION.SDK_INT < 33 ||
@@ -67,21 +105,23 @@ object HelperNotificationControl {
                 PackageManager.PERMISSION_GRANTED
 
     fun isShown(context: Context): Boolean = runCatching {
-        (context.getSystemService(NotificationManager::class.java))
+        context.getSystemService(NotificationManager::class.java)
             .activeNotifications.any { it.id == ID }
     }.getOrDefault(false)
 
-    /** Only start from a foreground Activity (or a permitted boot broadcast). Never show before UID1000 proof. */
+    /** Call from a foreground Activity or a permitted OS boot context. */
     fun sync(context: Context): Boolean {
         if (!enabled(context) || !HelperInspector.check(context).acceptedSystemUid) {
-            runCatching { context.stopService(Intent(context, VeyraHelperNotificationService::class.java)) }
+            runCatching {
+                context.stopService(Intent(context, VeyraHelperNotificationService::class.java))
+            }
             return false
         }
         if (!hasPermission(context)) return false
         return runCatching {
-            val intent = Intent(context, VeyraHelperNotificationService::class.java)
-            if (Build.VERSION.SDK_INT >= 26) context.startForegroundService(intent)
-            else context.startService(intent)
+            val i = Intent(context, VeyraHelperNotificationService::class.java)
+            if (Build.VERSION.SDK_INT >= 26) context.startForegroundService(i)
+            else context.startService(i)
             true
         }.getOrDefault(false)
     }
@@ -96,13 +136,12 @@ class VeyraHelperNotificationService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
+
         val manager = getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(
-            NotificationChannel(
-                HelperNotificationControl.CHANNEL, "Veyra Helper Status",
-                NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = "Permanenter lokaler Status eines bestätigten Veyra System-Helpers"
+            NotificationChannel(HelperNotificationControl.CHANNEL,
+                "Veyra Helper", NotificationManager.IMPORTANCE_LOW).apply {
+                description = "Aktueller Status des installierten System-UID-Helpers"
                 setShowBadge(false)
             }
         )
@@ -113,7 +152,7 @@ class VeyraHelperNotificationService : Service() {
         val notification = Notification.Builder(this, HelperNotificationControl.CHANNEL)
             .setSmallIcon(android.R.drawable.ic_lock_lock)
             .setContentTitle("Veyra Helper · System-UID 1000")
-            .setContentText("Helper bestätigt. Root (UID 0) wird separat geprüft.")
+            .setContentText("Helper ${helper.versionName ?: ""} erkannt · Root UID0 separat prüfen")
             .setContentIntent(open)
             .setCategory(Notification.CATEGORY_SERVICE)
             .setOngoing(true)
@@ -121,10 +160,10 @@ class VeyraHelperNotificationService : Service() {
             .setShowWhen(false)
             .build()
         try {
-            if (Build.VERSION.SDK_INT >= 34) {
+            if (Build.VERSION.SDK_INT >= 34)
                 startForeground(HelperNotificationControl.ID, notification,
                     ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
-            } else {
+            else {
                 @Suppress("DEPRECATION")
                 startForeground(HelperNotificationControl.ID, notification)
             }
@@ -139,9 +178,7 @@ class VeyraHelperNotificationService : Service() {
 class VeyraHelperBootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
-        // A userspace soft reboot does not reset SystemClock.elapsedRealtime: we do not claim it did.
-        val prefs = context.getSharedPreferences(HelperNotificationControl.PREFS, Context.MODE_PRIVATE)
-        prefs.edit().putLong("last_boot_observed_elapsed", SystemClock.elapsedRealtime()).apply()
+        // Boot delivery never claims a kernel exploit or a UID0 grant.
         runCatching { HelperNotificationControl.sync(context) }
     }
 }

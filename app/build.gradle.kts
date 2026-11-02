@@ -11,8 +11,8 @@ android {
         applicationId = "ctrl.veyracore"
         minSdk = 33
         targetSdk = 35
-        versionCode = 4
-        versionName = "0.3.0-dev"
+        versionCode = 5
+        versionName = "0.4.0-dev"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures { compose = true; buildConfig = true }

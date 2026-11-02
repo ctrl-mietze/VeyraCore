@@ -16,3 +16,7 @@ This repository's new source is independently authored. External claims about a 
 Die 57 Links in docs/PORT_REGISTRY.md sind öffentliche Referenzen; die neue Anwendung enthält keine von dort kopierten nativen Exploit-Binaries, umbenannten proprietären Treiber oder KernelSU-Kernel-Patches. Sie kann vorhandene fremde Root-Laufzeiten für Module verwenden.
 
 Upstream-Referenzen: BuSung-dev / Root My Galaxy und Payloads, rushiranpise / Root My Galaxy Next und Payloads, mitschud / DirtyFrag, tiann / KernelSU. Bei einer späteren tatsächlichen Übernahme gelten die Originallizenzen und Urhebervermerke der jeweiligen Projekte.
+
+## 0.4.0-dev
+
+Veyra Load (Kotlin-Kontrollschicht) und der Helper-APK-Updatepfad sind eigenständige Android-App-Komponenten. KernelSU und Magisk bleiben externe Root-Runtimes und Modulinstaller; ihre Namen dienen der transparenten Kompatibilitätsanzeige. Aus KernelSU, Root My Galaxy Next oder DirtyFrag wurden keine nativen Kernel-Treiber, Exploit-Dateien oder Systemsignatur-Injektionskomponenten in diese Entwicklungsstufe übernommen. Originalquellen und Lizenzreferenzen stehen im Port-Katalog.
