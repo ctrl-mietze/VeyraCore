@@ -167,12 +167,33 @@ class VeyraViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
         if (!automaticSelection) {
-            providerStatus = "Manuell: Wähle unten einen installierten Root-Provider. Die ausgewählte Quelle ist zunächst nur Referenz."
+            val selected = selectedPort.lowercase()
+            val mappedId = when {
+                selected.contains("root-my-galaxy-next") -> "rmgn"
+                selected.startsWith("busung-dev/root-my-galaxy") -> "rmg"
+                selected.contains("ghostlock-galaxy") -> "zf6-root"
+                selected.contains("root-my-s24") -> "veyra-root"
+                else -> null
+            }
+            val provider = mappedId?.let { id ->
+                InstalledRootTools.known.firstOrNull {
+                    it.id == id && InstalledRootTools.isInstalled(context, it)
+                }
+            }
+            if (provider == null) {
+                providerStatus = "Ausgewählte Quelle ${selectedPort.ifBlank { "nicht angegeben" }} ist nicht als installierbarer App-Provider verfügbar. Wähle unten einen vorhandenen Anbieter; kein fremder Exploit wird ungeprüft gestartet."
+                log(Severity.WARNING, "Manueller Provider", providerStatus!!)
+            } else openInstalledRootTool(context, provider)
             return
         }
-        val provider = InstalledRootTools.recommended(context, device, matchedProfiles.size)
+        // Disabling Veyra's preliminary device check allows choosing and opening an
+        // installed provider, but that provider still owns its own compatibility checks.
+        val eligibleProfiles = if (deviceVerification) matchedProfiles.size else maxOf(1, matchedProfiles.size)
+        val provider = InstalledRootTools.recommended(context, device, eligibleProfiles)
         if (provider == null) {
-            providerStatus = "Kein geprüfter Payload-Provider für dieses Geräteprofil einsatzbereit. Ein Feed-Treffer allein beweist keine Verwundbarkeit."
+            providerStatus = if (deviceVerification)
+                "Kein geprüftes Geräteprofil für einen installierten Root-Provider verfügbar. Feed-Treffer allein garantieren keinen Exploit."
+            else "Kein installierter kompatibler Root-Provider vorhanden. Geräteprüfung ist deaktiviert, aber es wird kein ungeprüfter Kernel-Exploit ausgeführt."
             log(Severity.WARNING, "Keine Root-Engine verfügbar", providerStatus!!)
         } else openInstalledRootTool(context, provider)
     }

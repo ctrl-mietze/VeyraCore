@@ -29,8 +29,8 @@ Updated: 2026-11-02
 - Original RMG Next staging process checked in actual DfrInstall.kt / DfrFlow.kt and helper AndroidManifest.xml: package manager signature history, reboot, install system-UID helper, verify UID1000. New project does not edit packages.xml itself.
 - Gradle command: bash ./gradlew :app:testDebugUnitTest :app:assembleDebug --no-daemon --console=plain.
 - Result: BUILD SUCCESSFUL; 19 JUnit tests, 0 failures, 0 errors, 0 skipped.
-- APK: app/build/outputs/apk/debug/app-debug.apk, 59,047,525 bytes; copied to the Samsung Android Downloads folder under VeyraCore-v0.3.0-dev-debug.apk.
-- APK SHA-256: 518d0bacfe40d542a012c8887d08ef53a512fc8acde9fc5ed6260c398243a99d.
+- APK: app/build/outputs/apk/debug/app-debug.apk, 59,517,067 bytes; copied to the Samsung Android Downloads folder under VeyraCore-v0.3.0-dev-debug.apk.
+- APK SHA-256: a178bf742e3952cf0bc88fb001556673da8f696ce6204a9128c3a10b8d716376.
 
 ## Not implemented, not claimed
 
