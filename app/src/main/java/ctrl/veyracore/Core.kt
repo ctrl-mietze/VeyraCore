@@ -145,6 +145,18 @@ class LocalStore(context: Context) {
     var berry: Boolean
         get() = prefs.getBoolean("berry", false)
         set(value) { prefs.edit().putBoolean("berry", value).apply() }
+
+    var automaticSelection: Boolean
+        get() = prefs.getBoolean("automatic_selection", true)
+        set(value) { prefs.edit().putBoolean("automatic_selection", value).apply() }
+
+    var deviceVerification: Boolean
+        get() = prefs.getBoolean("device_verification", true)
+        set(value) { prefs.edit().putBoolean("device_verification", value).apply() }
+
+    var selectedPort: String
+        get() = prefs.getString("selected_port", "") ?: ""
+        set(value) { prefs.edit().putString("selected_port", value).apply() }
     fun append(log: AppLog) {
         val encoded = Base64.getEncoder().encodeToString("${log.epochMs}|${log.severity}|${log.event}|${log.detail}".toByteArray())
         val all = (prefs.getString("logs", "") ?: "").split(',').filter { it.isNotBlank() }.takeLast(199) + encoded

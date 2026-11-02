@@ -10,3 +10,9 @@ VeyraCore v0.2.0-dev contains no copied native source, binaries, payloads, kerne
 | GhostSam | https://github.com/snothin/GhostSam | Apache-2.0 | No code or artifacts imported. Any future reuse requires NOTICE/license preservation. |
 
 This repository's new source is independently authored. External claims about a device, kernel, CVE, or compatibility are never converted into a VeyraCore support claim without reproducible, device-specific review.
+
+## Eigenständige VeyraCore-Entwicklung 0.3.0-dev
+
+Die 57 Links in docs/PORT_REGISTRY.md sind öffentliche Referenzen; die neue Anwendung enthält keine von dort kopierten nativen Exploit-Binaries, umbenannten proprietären Treiber oder KernelSU-Kernel-Patches. Sie kann vorhandene fremde Root-Laufzeiten für Module verwenden.
+
+Upstream-Referenzen: BuSung-dev / Root My Galaxy und Payloads, rushiranpise / Root My Galaxy Next und Payloads, mitschud / DirtyFrag, tiann / KernelSU. Bei einer späteren tatsächlichen Übernahme gelten die Originallizenzen und Urhebervermerke der jeweiligen Projekte.

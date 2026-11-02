@@ -1,3 +1,22 @@
+# VeyraCore — 0.3.0-dev Root-Katalog und Helper-Status
+
+**Entwicklungsstand, keine vollständige native GhostLock/DirtyFrag-Suite.** Dieses Projekt ist eine eigenständige Android-App mit dem Paket ctrl.veyracore, kein KernelSU-Fork. Die bisherige Anwendung ctrl.mietze.veyracore bleibt unverändert.
+
+**Neu in 0.3.0-dev:**
+- 57 GitHub-Projekte als gruppierter, durchsuchbarer Quellenkatalog (Quelle ist nicht gleich geprüfter Exploit).
+- Zwei veröffentlichte Metadaten-Supportfeeds mit Modell-/Kernel-Abgleich, begrenztem Download, lokalem Cache und klarer Trefferkennzeichnung.
+- Wahl zwischen automatischer Methodenauswahl und manuellem Recherchemodus einschließlich aktivierbarer Geräteprüfung.
+- Reale Root-Prüfung mit su -c id und UID0, auch nach Rückkehr von bestehenden Veyra Root, alter VeyraCore, ZF6Root, RMG und RMG Next.
+- Android PackageManager-Prüfung der vorhandenen Veyra-Helper-App: UID1000 ist getrennt von UID0, kein vorgetäuschtes Zertifikat.
+- Opt-in persistente Helper-Benachrichtigung über Foreground Service nach UID1000-Prüfung.
+- Veyra OLED und Veyra Berry, weiterhin Module/Superuser bei nachgewiesenem Root, Logs und Export.
+
+**Noch nicht integriert oder getestet:** 57 eigenständige native Exploit-Ports, universelles GhostLock/DirtyFrag-Reroot, Veyra-eigene Kernel-Treiber, selbständige Paketmanager-Zertifikatsinjektion. Das Root-Setup bleibt bei installierten kompatiblen Providern; jede Portierung benötigt eigene technische Prüfung.
+
+Weitere Details: [Root-Quellen](docs/PORT_REGISTRY.md), [Architektur](docs/ARCHITECTURE.md), [Standbericht](IMPLEMENTATION_REPORT_NEXT.md).
+
+---
+
 ![VeyraCore: independent Android root workspace](docs/media/veyracore-banner.svg)
 
 # VeyraCore
