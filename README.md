@@ -1,3 +1,20 @@
+# VeyraCore 0.5.0-dev — Veyra Root profile integration
+
+VeyraCore now uses its own internal Veyra Root profile analyzer rather than a home page dominated by shortcuts to other root apps. The Android application ID remains ctrl.veyracore.
+
+**Actually implemented**
+- Original Veyra Root local metadata: **12 DF** and **29 Pixel** profiles bundled inside the APK, with preserved manifest SHA-256 provenance.
+- Two bounded online RMG support manifests, parsed with Veyra Root-style matching of model, codename, build IDs, kernel version and exactMatch.kernelRelease.
+- Evidence grades: kernel series only / model plus numeric kernel / full kernel release / model plus build ID and full release.
+- Internal on-device SU verification, module management, system-UID Helper diagnostics and helper notifications retained from 0.4.
+- UI no longer presents external Root APK launch cards as the primary root method.
+
+**Not implemented:** Native GhostLock/DirtyFrag exploit execution, a kernel privilege-escalation chain, arbitrary compatibility enforcement bypass, or a new system-signature injection. The 57 linked GitHub projects remain research references, not executable binaries. A profile match is not an exploit success.
+
+Read [0.5 implementation notes](IMPLEMENTATION_REPORT_V050.md) and [root source catalog](docs/PORT_REGISTRY.md).
+
+---
+
 # VeyraCore 0.4.0-dev — Veyra Load & Helper
 
 Neuer Quellstand der eigenständigen Android-App ctrl.veyracore. 0.4 erweitert den 0.3-Root-Katalog um eine echte, autorisierte SU-Kontrollschicht und eine eigene sichere Helper-Update-Strecke. Das ist keine Behauptung, alle 57 GhostLock-/DirtyFrag-Projekte als Exploit in der APK ausführen zu können.

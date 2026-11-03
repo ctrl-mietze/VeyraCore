@@ -97,12 +97,15 @@ class VeyraViewModel(app: Application) : AndroidViewModel(app) {
     var matchedProfiles by mutableStateOf<List<PayloadProfile>>(emptyList()); private set
     var feedStatus by mutableStateOf("Payload-Feeds noch nicht abgefragt"); private set
     var feedLoading by mutableStateOf(false); private set
+    var internalProfiles by mutableStateOf<List<InternalRootProfile>>(emptyList()); private set
+    var internalEvidence by mutableStateOf<List<Pair<InternalRootProfile, ProfileEvidence>>>(emptyList()); private set
+    var internalCatalogStatus by mutableStateOf("Interner Katalog wird eingelesen"); private set
     var logs by mutableStateOf(store.logs()); private set
     var exportStatus by mutableStateOf<String?>(null); private set
     val device = DeviceInfo.current()
 
     init {
-        log(Severity.INFO, "VeyraCore gestartet", "v0.4.0-dev; Root UID 0 und Helper UID 1000 getrennt")
+        log(Severity.INFO, "VeyraCore gestartet", "v0.5.0-dev; Root UID 0 und Helper UID 1000 getrennt")
         refreshHelper()
         refreshPayloadFeeds()
     }
@@ -124,7 +127,17 @@ class VeyraViewModel(app: Application) : AndroidViewModel(app) {
     }
     fun refreshPayloadFeeds() = viewModelScope.launch {
         feedLoading = true
+        val bundled = VeyraInternalCatalog(getApplication()).loadAll()
         val result = PayloadFeeds(getApplication()).refresh()
+        val localProfiles = bundled.flatMap { it.getOrNull()?.profiles.orEmpty() }
+        internalProfiles = (localProfiles + result.internalProfiles).distinctBy { it.source + ":" + it.id }
+        internalEvidence = internalProfiles.map { it to it.evidence(device) }
+            .filter { it.second != ProfileEvidence.NO_MATCH }
+            .sortedByDescending { it.second.rank }
+        internalCatalogStatus = "Veyra Root DF + Pixel: ${localProfiles.size} Profile · " +
+            "Online: ${result.internalProfiles.size} · Gerätetreffer: ${internalEvidence.size}" +
+            bundled.mapNotNull { it.exceptionOrNull()?.message }.takeIf { it.isNotEmpty() }
+                ?.joinToString("; ")?.let { " · Fehler: $it" }.orEmpty()
         discoveredProfiles = result.profiles
         matchedProfiles = PayloadFeeds.matching(result.profiles, device)
         feedStatus = result.message + " · ${matchedProfiles.size} Modell-/Kernel-Treffer"
@@ -410,13 +423,11 @@ private enum class Tab(val label: String, val icon: androidx.compose.ui.graphics
     }
 }
 
-@Composable private fun Home(vm: VeyraViewModel) = Page("VeyraCore", "v0.4.0-dev · Veyra Load Runtime") {
+@Composable private fun Home(vm: VeyraViewModel) = Page("VeyraCore", "v0.5.0-dev · integrierte Root-Profilanalyse") {
     item { Panel { Row(verticalAlignment = Alignment.CenterVertically) { Box(Modifier.size(42.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary), contentAlignment = Alignment.Center) { Icon(Icons.Rounded.Shield, null, tint = MaterialTheme.colorScheme.onPrimary) }; Spacer(Modifier.width(12.dp)); Column { Text("Root-Status", style = MaterialTheme.typography.titleMedium); StatusText(vm.probe.state, vm.probe.detail) } }; Button(onClick = vm::checkRoot, enabled = !vm.checking, modifier = Modifier.fillMaxWidth()) { if (vm.checking) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp); else Icon(Icons.Rounded.Security, null); Spacer(Modifier.width(8.dp)); Text(if (vm.checking) "Prüfung läuft" else "Root prüfen") }; Text("Nachweis: begrenztes „su -c id“. Kein Status wird aus einem Dateipfad oder einer Manager-App abgeleitet.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) } }
     item { RootStartPanel(vm) }
+    item { InternalEnginePanel(vm) }
     item { VeyraLoadPanel(vm) }
-    item { Text("Root-Provider", style = MaterialTheme.typography.titleLarge) }
-    item { Text("Vorhandene Root-App wirklich öffnen und danach UID 0 erneut verifizieren. Der eingebaute Katalog enthält Forschungsquellen, keine ausführbaren Universal-Exploits.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-    InstalledRootTools.known.forEach { tool -> item { InstalledToolPanel(vm, tool) } }
     vm.providerStatus?.let { message -> item { Text(message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary) } }
     item { Text("Gerät", style = MaterialTheme.typography.titleLarge) }
     item { DevicePanel(vm.device) }
@@ -473,6 +484,52 @@ private enum class Tab(val label: String, val icon: androidx.compose.ui.graphics
     }
 }
 
+@Composable private fun InternalEnginePanel(vm: VeyraViewModel) {
+    Panel {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Rounded.Memory, null, tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.width(8.dp))
+            Text("Veyra Root · interne Profildaten",
+                style = MaterialTheme.typography.titleMedium)
+        }
+        Text(vm.internalCatalogStatus, style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Meta("Modell / Codename", "${vm.device.model} / ${vm.device.codename}")
+        Meta("Build", vm.device.buildId)
+        Text("Die originalen Veyra-DF-/Pixel-Profildaten und die beiden RMG-Onlinekataloge sind direkt integriert. Je stärker die Geräte-/Build-Belege, desto höher die Einstufung; keiner dieser Treffer lädt oder startet automatisch native Kernel-Codebestandteile.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (vm.internalEvidence.isEmpty()) {
+            Text("Keine passenden Profile gefunden – Root nicht bestätigt.",
+                color = Amber, style = MaterialTheme.typography.bodySmall)
+        }
+        vm.internalEvidence.take(10).forEach { (profile, evidence) ->
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = .3f))
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(profile.name, fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.bodyMedium)
+                Text(evidence.label, color = Amber,
+                    style = MaterialTheme.typography.labelMedium)
+                Text("${profile.source} · ${profile.flavor} · ${profile.id}",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall)
+                Text(
+                    if (profile.exploitEvidence?.digestDeclared == true)
+                        "Quell-Hash angegeben · ausführbarer Payload nicht eingebunden"
+                    else "Keine vollständige Artefaktprüfung · Analyseprofil",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        OutlinedButton(onClick = vm::refreshPayloadFeeds,
+            enabled = !vm.feedLoading, modifier = Modifier.fillMaxWidth()) {
+            Icon(Icons.Rounded.Refresh, null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Interne Profile aktualisieren")
+        }
+    }
+}
+
 @Composable private fun RootStartPanel(vm: VeyraViewModel) {
     val context = LocalContext.current
     val selected = RootPortRegistry.all.find { it.id == vm.selectedPort }
@@ -482,7 +539,7 @@ private enum class Tab(val label: String, val icon: androidx.compose.ui.graphics
             Spacer(Modifier.width(8.dp))
             Text("01 · ROOT ERHALTEN", style = MaterialTheme.typography.titleMedium)
         }
-        Text("Vorhandene Root-Rechte (KernelSU, Magisk oder kompatibles su) akzeptieren oder passenden Anbieter starten. Erfolg zählt ausschließlich mit UID 0.",
+        Text("VeyraCore führt die Rootprüfung selbst aus. Liegt eine autorisierte SU-Runtime vor, wird UID0 direkt erkannt. Die integrierte Profilanalyse startet keinen ungeprüften Kernel-Exploit.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween) {
@@ -521,10 +578,14 @@ private enum class Tab(val label: String, val icon: androidx.compose.ui.graphics
             Text("Kein bestätigter Modell-/Kernel-Treffer in den verfügbaren Feeds. Keine automatische Exploit-Freigabe.",
                 style = MaterialTheme.typography.bodySmall, color = Amber)
         }
-        Button(onClick = { vm.startRecommendedRoot(context) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-            Icon(Icons.Rounded.PlayArrow, null)
+        Button(onClick = vm::checkRoot,
+            enabled = !vm.checking,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+            Icon(Icons.Rounded.VerifiedUser, null)
             Spacer(Modifier.width(8.dp))
-            Text(if (vm.probe.state == Verification.VERIFIED) "Root bereits vorhanden" else "Root-Provider starten")
+            Text(if (vm.probe.state == Verification.VERIFIED)
+                "Vorhandener Rootzugriff bestätigt"
+            else "Root-Zugriff intern prüfen")
         }
         OutlinedButton(onClick = vm::checkRoot, enabled = !vm.checking, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
             Icon(Icons.Rounded.VerifiedUser, null)
@@ -926,11 +987,11 @@ private enum class Tab(val label: String, val icon: androidx.compose.ui.graphics
                 Text("Root-Beweis: su -c id, UID 0. Zertifikatsbeweis: System-UID 1000 des installierten Helpers. Eintrag im GitHub-Katalog ist kein Exploit-Nachweis.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall)
-                Text("VeyraCore 0.4.0-dev · eigenständige App. KernelSU-Module werden nur über tatsächlich verfügbare Root-Runtimes verwaltet. Keine in diese Version kopierten Treiber oder neuen Kernel-Patches.",
+                Text("VeyraCore 0.5.0-dev · eigenständige App. KernelSU-Module werden nur über tatsächlich verfügbare Root-Runtimes verwaltet. Keine in diese Version kopierten Treiber oder neuen Kernel-Patches.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall)
                 OutlinedButton(onClick = {
-                    val diagnostics = "VeyraCore 0.4.0-dev\n${vm.device}\nRoot: ${vm.probe}\nHelper: ${vm.helper}\nProfiles: ${vm.feedStatus}\nAutomatic: ${vm.automaticSelection}\nDeviceCheck: ${vm.deviceVerification}"
+                    val diagnostics = "VeyraCore 0.5.0-dev\n${vm.device}\nRoot: ${vm.probe}\nHelper: ${vm.helper}\nProfiles: ${vm.feedStatus}\nAutomatic: ${vm.automaticSelection}\nDeviceCheck: ${vm.deviceVerification}"
                     context.getSystemService(ClipboardManager::class.java)
                         .setPrimaryClip(ClipData.newPlainText("VeyraCore diagnostics", diagnostics))
                     vm.log(Severity.INFO, "Diagnose kopiert", "Zwischenablage")

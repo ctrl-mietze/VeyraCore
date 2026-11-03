@@ -21,7 +21,9 @@ data class DeviceInfo(
     val fingerprint: String,
     val abi: String = "Unbekannt",
     val pageSize: String = "Unbekannt",
-    val securityPatch: String = "Unbekannt"
+    val securityPatch: String = "Unbekannt",
+    val codename: String = "Unbekannt",
+    val buildId: String = "Unbekannt"
 ) {
     companion object {
         fun current() = DeviceInfo(
@@ -34,7 +36,9 @@ data class DeviceInfo(
             pageSize = runCatching {
                 android.system.Os.sysconf(android.system.OsConstants._SC_PAGESIZE).toString() + " B"
             }.getOrDefault("Unbekannt"),
-            securityPatch = Build.VERSION.SECURITY_PATCH ?: "Unbekannt"
+            securityPatch = Build.VERSION.SECURITY_PATCH ?: "Unbekannt",
+            codename = Build.DEVICE.ifBlank { "Unbekannt" },
+            buildId = Build.ID.ifBlank { "Unbekannt" }
         )
     }
 }

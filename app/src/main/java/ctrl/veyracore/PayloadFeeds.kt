@@ -33,7 +33,8 @@ object KernelVersion {
 data class ProfileFeedResult(
     val profiles: List<PayloadProfile>,
     val message: String,
-    val fromCache: Boolean
+    val fromCache: Boolean,
+    val internalProfiles: List<InternalRootProfile> = emptyList()
 )
 
 /** Read-only metadata. Deliberately never downloads or executes exploit / daemon artifacts. */
@@ -50,6 +51,7 @@ class PayloadFeeds(private val context: Context) {
 
     suspend fun refresh(): ProfileFeedResult = withContext(Dispatchers.IO) {
         val found = mutableListOf<PayloadProfile>()
+        val internal = mutableListOf<InternalRootProfile>()
         val errors = mutableListOf<String>()
         var cacheCount = 0
         for (source in sources) {
@@ -61,6 +63,9 @@ class PayloadFeeds(private val context: Context) {
             if (raw == null) continue
             try {
                 found += parse(source.key, raw)
+                internal += InternalRootProfileParser.parse(
+                    source.key, raw.toByteArray(Charsets.UTF_8)
+                ).profiles
                 if (latest != null) {
                     prefs.edit().putString("raw_${source.key}", raw)
                         .putLong("timestamp_${source.key}", System.currentTimeMillis()).apply()
@@ -73,7 +78,8 @@ class PayloadFeeds(private val context: Context) {
         val detail = "${merged.size} Profile aus ${sources.size} Feeds" +
             (if (cacheCount > 0) " · ${cacheCount} Cache-Quelle(n)" else "") +
             (if (errors.isEmpty()) "" else " · " + errors.joinToString("; "))
-        ProfileFeedResult(merged, detail, cacheCount > 0)
+        ProfileFeedResult(merged, detail, cacheCount > 0,
+            internal.distinctBy { it.source + ":" + it.id })
     }
 
     private fun fetchBounded(source: String): String {

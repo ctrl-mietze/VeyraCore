@@ -43,3 +43,11 @@ VeyraModuleInstaller ermittelt den verfügbaren Modultransport nach Root-Revalid
 HelperInspector kontrolliert Paketname, PackageManager-UID, Version und Zertifikat-Hash. Die Update-Strecke HelperPackageInstaller öffnet ausschließlich für bereits akzeptierte UID1000-installierte Helper-Pakete mit identischer Signatur den Android-Paketinstaller. Ein beliebiges APK oder eine neue Signatur kann nicht in den System-SharedUser eingeschleust werden. Ein Android-Signaturbypass ist nicht Bestandteil dieser Updatefunktion.
 
 Die Foreground-Service-Benachrichtigung wird nicht mehr während der Initialisierung des ViewModels gestartet; sie wird aus einer sichtbaren Activity oder aus zulässigem Boot-Kontext angefordert. Die tatsächliche Android-Sichtbarkeit wird separat abgefragt.
+
+## 0.5.0-dev — Internal Veyra Root profile evidence
+
+VeyraProfileEngine.kt reads bundled metadata copied from Veyra Root's local DF and Pixel target manifests, plus the existing bounded online support feeds. It parses schema version 3, validates profile IDs, checks payload and daemon descriptor hashes for well-formedness when declared, and keeps the manifest SHA-256 for provenance. It never loads or runs native payload artifacts.
+
+Evidence is graded in ascending order: no match, wildcard/kernel-series candidate, exact model with version-only kernel, exact full uname kernel-release, and full release with matching declared build-id. exactMatch.kernelRelease from Veyra Root SupportManifest is folded into the comparison to prevent silently downgrading exact firmware evidence to a broad KMI match. This ranking does not itself certify exploit compatibility.
+
+The Home screen no longer foregrounds external app launchers. Root status remains solely an authorized UID0 verification. Profiles are not treated as root capabilities, and the internal control plane cannot grant root without an existing authorized SU backend.
