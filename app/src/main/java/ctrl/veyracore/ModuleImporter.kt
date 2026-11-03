@@ -79,25 +79,9 @@ class ModuleImporter(private val context: Context, private val shell: SafeShell)
         }
     }
 
+    /** Execute exclusively through an already authorized KernelSU/Magisk module backend. */
     suspend fun install(staged: StagedModule): Result<String> = withContext(Dispatchers.IO) {
-        runCatching {
-            require(staged.file.isFile && staged.file.parentFile?.name == "module-import") { "Ungültige Zwischendatei" }
-            val root = shell.probe()
-            require(root.state == Verification.VERIFIED) { "UID 0 ist nicht mehr verifiziert" }
-            // Only call a checked existing ksud. No custom arbitrary shell command from the ZIP.
-            val candidate = shell.su(
-                "if [ -x /data/adb/ksu/bin/ksud ]; then echo /data/adb/ksu/bin/ksud; else command -v ksud || true; fi", 4
-            )
-            val tool = candidate.output.lineSequence().map { it.trim() }.firstOrNull {
-                it.startsWith('/') && it.endsWith("/ksud") && it.matches(Regex("[A-Za-z0-9/_.-]+"))
-            } ?: error("Kein kompatibler ksud-Modulinstaller nachgewiesen")
-            val safePath = staged.file.absolutePath
-            require(safePath.matches(Regex("[A-Za-z0-9/_.-]+"))) { "Unsicherer Cachepfad" }
-            val result = shell.su("$tool module install '$safePath'", 90)
-            require(result.exitCode == 0 && !result.timedOut) {
-                result.error ?: result.output.ifBlank { "Modul-Installation fehlgeschlagen" }
-            }
-            result.output.ifBlank { "Modul an kompatible Runtime übergeben" }.takeLast(1200)
-        }
+        VeyraModuleInstaller(shell).install(staged)
     }
+
 }

@@ -11,8 +11,8 @@ android {
         applicationId = "ctrl.veyracore"
         minSdk = 33
         targetSdk = 35
-        versionCode = 3
-        versionName = "0.2.1-dev"
+        versionCode = 6
+        versionName = "0.5.0-dev"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures { compose = true; buildConfig = true }
@@ -34,4 +34,5 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20250517")
 }

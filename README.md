@@ -1,3 +1,53 @@
+# VeyraCore 0.5.0-dev — Veyra Root profile integration
+
+VeyraCore now uses its own internal Veyra Root profile analyzer rather than a home page dominated by shortcuts to other root apps. The Android application ID remains ctrl.veyracore.
+
+**Actually implemented**
+- Original Veyra Root local metadata: **12 DF** and **29 Pixel** profiles bundled inside the APK, with preserved manifest SHA-256 provenance.
+- Two bounded online RMG support manifests, parsed with Veyra Root-style matching of model, codename, build IDs, kernel version and exactMatch.kernelRelease.
+- Evidence grades: kernel series only / model plus numeric kernel / full kernel release / model plus build ID and full release.
+- Internal on-device SU verification, module management, system-UID Helper diagnostics and helper notifications retained from 0.4.
+- UI no longer presents external Root APK launch cards as the primary root method.
+
+**Not implemented:** Native GhostLock/DirtyFrag exploit execution, a kernel privilege-escalation chain, arbitrary compatibility enforcement bypass, or a new system-signature injection. The 57 linked GitHub projects remain research references, not executable binaries. A profile match is not an exploit success.
+
+Read [0.5 implementation notes](IMPLEMENTATION_REPORT_V050.md) and [root source catalog](docs/PORT_REGISTRY.md).
+
+---
+
+# VeyraCore 0.4.0-dev — Veyra Load & Helper
+
+Neuer Quellstand der eigenständigen Android-App ctrl.veyracore. 0.4 erweitert den 0.3-Root-Katalog um eine echte, autorisierte SU-Kontrollschicht und eine eigene sichere Helper-Update-Strecke. Das ist keine Behauptung, alle 57 GhostLock-/DirtyFrag-Projekte als Exploit in der APK ausführen zu können.
+
+- Veyra Load prüft UID0 und erkennt SU-/KernelSU-/Magisk-Runtimes, SELinux und Modulbestand.
+- Module lassen sich nach erteilter Root-Berechtigung über einen nachgewiesenen ksud- oder magisk-Installer mit ZIP-Prüfung installieren.
+- Helper: installierte UID, APK-Version und SHA-256 der Signatur werden unabhängig geprüft. Ein bestehender System-UID1000-Helper kann durch eine signaturgleiche APK über den Android-Installer aktualisiert werden.
+- Permanente Benachrichtigung: nur bei UID1000-Nachweis, Berechtigung und passenden Android-Foreground-Service-Bedingungen.
+- 57 Forschungsquellen, manuelle und automatische Profil-Vorauswahl, OLED/Berry-Design, Logs und Module/Superuser-Navigation bleiben erhalten.
+
+[Implementierungsbericht 0.4](IMPLEMENTATION_REPORT_V040.md) · [Architektur](docs/ARCHITECTURE.md) · [Portquellen](docs/PORT_REGISTRY.md)
+
+---
+
+# VeyraCore — 0.3.0-dev Root-Katalog und Helper-Status
+
+**Entwicklungsstand, keine vollständige native GhostLock/DirtyFrag-Suite.** Dieses Projekt ist eine eigenständige Android-App mit dem Paket ctrl.veyracore, kein KernelSU-Fork. Die bisherige Anwendung ctrl.mietze.veyracore bleibt unverändert.
+
+**Neu in 0.3.0-dev:**
+- 57 GitHub-Projekte als gruppierter, durchsuchbarer Quellenkatalog (Quelle ist nicht gleich geprüfter Exploit).
+- Zwei veröffentlichte Metadaten-Supportfeeds mit Modell-/Kernel-Abgleich, begrenztem Download, lokalem Cache und klarer Trefferkennzeichnung.
+- Wahl zwischen automatischer Methodenauswahl und manuellem Recherchemodus einschließlich aktivierbarer Geräteprüfung.
+- Reale Root-Prüfung mit su -c id und UID0, auch nach Rückkehr von bestehenden Veyra Root, alter VeyraCore, ZF6Root, RMG und RMG Next.
+- Android PackageManager-Prüfung der vorhandenen Veyra-Helper-App: UID1000 ist getrennt von UID0, kein vorgetäuschtes Zertifikat.
+- Opt-in persistente Helper-Benachrichtigung über Foreground Service nach UID1000-Prüfung.
+- Veyra OLED und Veyra Berry, weiterhin Module/Superuser bei nachgewiesenem Root, Logs und Export.
+
+**Noch nicht integriert oder getestet:** 57 eigenständige native Exploit-Ports, universelles GhostLock/DirtyFrag-Reroot, Veyra-eigene Kernel-Treiber, selbständige Paketmanager-Zertifikatsinjektion. Das Root-Setup bleibt bei installierten kompatiblen Providern; jede Portierung benötigt eigene technische Prüfung.
+
+Weitere Details: [Root-Quellen](docs/PORT_REGISTRY.md), [Architektur](docs/ARCHITECTURE.md), [Standbericht](IMPLEMENTATION_REPORT_NEXT.md).
+
+---
+
 ![VeyraCore: independent Android root workspace](docs/media/veyracore-banner.svg)
 
 # VeyraCore
